@@ -31,6 +31,8 @@ type ProfileData = {
     badge_color: string;
     cursor_effect: string;
     card_style: string;
+    custom_font_url: string;
+    custom_font_name: string;
   };
   links: { id: string; title: string; url: string; icon: string }[];
 };
@@ -43,8 +45,6 @@ export default function ProfilePage() {
   const [views, setViews] = useState(0);
   const [playing, setPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const particlesRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
     fetch(`/api/profile/${username}`).then(r => {
@@ -54,14 +54,11 @@ export default function ProfilePage() {
       if (!d) return;
       setData(d);
       setViews(d.views);
-      // Record view
       fetch('/api/views', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: d.userId }),
-      }).then(r => r.json()).then(v => {
-        if (v.views) setViews(v.views);
-      });
+      }).then(r => r.json()).then(v => { if (v.views) setViews(v.views); });
     });
   }, [username]);
 
@@ -70,21 +67,19 @@ export default function ProfilePage() {
     if (!data?.profile?.cursor_effect || data.profile.cursor_effect === 'none') return;
     const effect = data.profile.cursor_effect;
     const accent = data.profile.accent_color || '#a855f7';
-    const particles: HTMLDivElement[] = [];
 
     const onMove = (e: MouseEvent) => {
       if (effect === 'trail') {
         const p = document.createElement('div');
         p.style.cssText = `position:fixed;pointer-events:none;z-index:9999;width:6px;height:6px;border-radius:50%;background:${accent};left:${e.clientX - 3}px;top:${e.clientY - 3}px;opacity:0.8;transition:opacity 0.5s;`;
         document.body.appendChild(p);
-        particles.push(p);
         setTimeout(() => { p.style.opacity = '0'; setTimeout(() => p.remove(), 500); }, 50);
-      } else if (effect === 'ring') {
+      } else {
         const cursor = document.getElementById('custom-cursor');
-        if (cursor) { cursor.style.left = e.clientX - 16 + 'px'; cursor.style.top = e.clientY - 16 + 'px'; }
-      } else if (effect === 'dot') {
-        const cursor = document.getElementById('custom-cursor');
-        if (cursor) { cursor.style.left = e.clientX - 4 + 'px'; cursor.style.top = e.clientY - 4 + 'px'; }
+        if (cursor) {
+          cursor.style.left = (e.clientX - (effect === 'ring' ? 16 : 4)) + 'px';
+          cursor.style.top = (e.clientY - (effect === 'ring' ? 16 : 4)) + 'px';
+        }
       }
     };
 
@@ -107,7 +102,6 @@ export default function ProfilePage() {
       window.removeEventListener('mousemove', onMove);
       document.getElementById('custom-cursor')?.remove();
       document.body.style.cursor = '';
-      particles.forEach(p => p.remove());
     };
   }, [data]);
 
@@ -125,7 +119,6 @@ export default function ProfilePage() {
       const duration = 4 + Math.random() * 6;
       const delay = Math.random() * 2;
       const size = 4 + Math.random() * 8;
-
       el.style.cssText = `position:fixed;pointer-events:none;z-index:1;left:${x}px;top:-20px;`;
 
       if (effect === 'snow') {
@@ -133,7 +126,7 @@ export default function ProfilePage() {
       } else if (effect === 'rain') {
         el.style.cssText += `width:1px;height:${10 + Math.random() * 15}px;background:linear-gradient(transparent,${color}88);animation:rain ${1 + Math.random() * 1.5}s ${delay}s linear infinite;`;
       } else if (effect === 'sakura') {
-        el.textContent = ['🌸', '🌺', '🌹'][Math.floor(Math.random() * 3)];
+        el.textContent = ['🌸','🌺','🌹'][Math.floor(Math.random() * 3)];
         el.style.cssText += `font-size:${size}px;animation:sakura-fall ${duration}s ${delay}s linear infinite;`;
       } else if (effect === 'bubbles') {
         const s2 = 10 + Math.random() * 30;
@@ -146,19 +139,15 @@ export default function ProfilePage() {
       }
 
       container.appendChild(el);
-      const t = setTimeout(() => el.remove(), (duration + delay) * 1000 + 1000);
-      particlesRef.current.push(t as unknown as ReturnType<typeof setTimeout>);
+      setTimeout(() => el.remove(), (duration + delay) * 1000 + 1000);
     };
 
     const count = effect === 'rain' || effect === 'matrix' ? 80 : 40;
-    for (let i = 0; i < count; i++) {
-      setTimeout(spawn, i * 100);
-    }
+    for (let i = 0; i < count; i++) setTimeout(spawn, i * 100);
     const interval = setInterval(spawn, effect === 'rain' || effect === 'matrix' ? 100 : 300);
 
     return () => {
       clearInterval(interval);
-      particlesRef.current.forEach(clearTimeout);
       if (container) container.innerHTML = '';
     };
   }, [data]);
@@ -186,12 +175,16 @@ export default function ProfilePage() {
   );
 
   const p = data.profile;
-  const fontImport = `https://fonts.googleapis.com/css2?family=${p.font_family?.replace(/ /g, '+')}:wght@400;700&display=swap`;
+  const isCustomFont = p.font_family === '__custom__' && p.custom_font_url;
+  const activeFontFamily = isCustomFont ? '__custom__' : (p.font_family || 'Space Grotesk');
+  const googleFontUrl = !isCustomFont
+    ? `https://fonts.googleapis.com/css2?family=${(p.font_family || 'Space Grotesk').replace(/ /g, '+')}:wght@400;700&display=swap`
+    : null;
 
   const getBg = () => {
     if (p.background_type === 'color') return p.background_value || '#0a0a0a';
     if (p.background_type === 'gradient') return p.background_value || '#0a0a0a';
-    if (p.background_type === 'image') return `url(${p.background_value}) center/cover no-repeat`;
+    if (p.background_type === 'image') return `url(${p.background_value}) center/cover no-repeat fixed`;
     return '#0a0a0a';
   };
 
@@ -202,41 +195,55 @@ export default function ProfilePage() {
 
   return (
     <>
-      <link rel="stylesheet" href={fontImport} />
+      {/* Inject Google font if not custom */}
+      {googleFontUrl && <link rel="stylesheet" href={googleFontUrl} />}
+
+      {/* Inject custom @font-face if user uploaded a font */}
+      {isCustomFont && (
+        <style>{`
+          @font-face {
+            font-family: '__custom__';
+            src: url('${p.custom_font_url}') format('${
+              p.custom_font_url.endsWith('.woff2') ? 'woff2'
+              : p.custom_font_url.endsWith('.woff') ? 'woff'
+              : p.custom_font_url.endsWith('.otf') ? 'opentype'
+              : 'truetype'
+            }');
+            font-weight: 100 900;
+            font-style: normal;
+            font-display: swap;
+          }
+        `}</style>
+      )}
+
       <div id="particle-container" style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 1, overflow: 'hidden' }} />
 
       <div style={{
         minHeight: '100vh',
         background: getBg(),
-        fontFamily: `'${p.font_family || 'Space Grotesk'}', sans-serif`,
+        fontFamily: `'${activeFontFamily}', sans-serif`,
         color: textColor,
         position: 'relative',
         overflowX: 'hidden',
       }}>
-        {/* Glow overlay */}
         {p.glow_enabled && (
           <div style={{ position: 'fixed', inset: 0, background: `radial-gradient(ellipse at 50% 20%, ${accent}22 0%, transparent 60%)`, pointerEvents: 'none', zIndex: 0 }} />
         )}
 
-        {/* Audio */}
-        {p.song_url && (
-          <audio ref={audioRef} src={p.song_url} loop preload="none" />
-        )}
+        {p.song_url && <audio ref={audioRef} src={p.song_url} loop preload="none" />}
 
         <div style={{ position: 'relative', zIndex: 10, maxWidth: 640, margin: '0 auto', padding: '60px 20px 80px' }}>
 
           {/* Banner */}
           <div style={{
-            height: 160,
-            borderRadius: '20px 20px 0 0',
-            background: p.banner_url ? `url(${p.banner_url}) center/cover` : p.banner_color || '#0d0d0d',
-            marginBottom: -50,
-            position: 'relative',
+            height: 160, borderRadius: '20px 20px 0 0',
+            background: p.banner_url ? `url(${p.banner_url}) center/cover` : (p.banner_color || '#0d0d0d'),
+            marginBottom: -50, position: 'relative',
           }}>
             {p.blur_enabled && <div style={{ position: 'absolute', inset: 0, backdropFilter: 'blur(2px)', borderRadius: '20px 20px 0 0' }} />}
           </div>
 
-          {/* Profile card */}
+          {/* Card */}
           <div className={cardClass} style={{ borderRadius: '0 0 20px 20px', padding: '60px 32px 32px', textAlign: isCenter ? 'center' : 'left' }}>
 
             {/* Avatar */}
@@ -259,12 +266,13 @@ export default function ProfilePage() {
 
             {/* Name + badge */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: isCenter ? 'center' : 'flex-start', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
-              <h1 className={p.font_effect !== 'none' ? `font-effect-${p.font_effect}` : ''}
+              <h1
+                className={p.font_effect && p.font_effect !== 'none' ? `font-effect-${p.font_effect}` : ''}
                 style={{
-                  fontSize: 26, fontWeight: 700, letterSpacing: '-0.5px',
-                  color: textColor,
+                  fontSize: 26, fontWeight: 700, letterSpacing: '-0.5px', color: textColor,
                   '--accent': accent,
-                } as React.CSSProperties}>
+                } as React.CSSProperties}
+              >
                 {p.display_name || data.username}
               </h1>
               {p.badge_text && (
@@ -279,10 +287,8 @@ export default function ProfilePage() {
               )}
             </div>
 
-            {/* Username */}
             <div style={{ fontSize: 13, color: `${textColor}66`, marginBottom: 16 }}>@{data.username}</div>
 
-            {/* Bio */}
             {p.bio && (
               <p style={{ fontSize: 15, lineHeight: 1.7, color: `${textColor}cc`, maxWidth: 420, margin: isCenter ? '0 auto 24px' : '0 0 24px', whiteSpace: 'pre-wrap' }}>
                 {p.bio}
@@ -311,12 +317,8 @@ export default function ProfilePage() {
                 </div>
                 {playing && (
                   <div style={{ marginLeft: 'auto', display: 'flex', gap: 2, alignItems: 'flex-end', height: 16 }}>
-                    {[1, 2, 3, 4].map(i => (
-                      <div key={i} style={{
-                        width: 3, background: accent, borderRadius: 2,
-                        animation: `float ${0.4 + i * 0.1}s ease-in-out infinite`,
-                        height: `${6 + Math.random() * 10}px`,
-                      }} />
+                    {[1,2,3,4].map(i => (
+                      <div key={i} style={{ width: 3, background: accent, borderRadius: 2, animation: `float ${0.4 + i * 0.1}s ease-in-out infinite`, height: `${8 + i * 3}px` }} />
                     ))}
                   </div>
                 )}
@@ -330,19 +332,13 @@ export default function ProfilePage() {
                   <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer"
                     style={{
                       display: 'flex', alignItems: 'center', gap: 12,
-                      padding: '12px 18px', borderRadius: 12, cursor: 'pointer',
+                      padding: '12px 18px', borderRadius: 12,
                       background: `${accent}10`, border: `1px solid ${accent}25`,
                       color: textColor, transition: 'all 0.2s', fontWeight: 500, fontSize: 14,
                       textDecoration: 'none',
                     }}
-                    onMouseEnter={e => {
-                      (e.currentTarget as HTMLElement).style.background = `${accent}22`;
-                      (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)';
-                    }}
-                    onMouseLeave={e => {
-                      (e.currentTarget as HTMLElement).style.background = `${accent}10`;
-                      (e.currentTarget as HTMLElement).style.transform = 'none';
-                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = `${accent}22`; (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = `${accent}10`; (e.currentTarget as HTMLElement).style.transform = 'none'; }}
                   >
                     <span style={{ fontSize: 20 }}>{link.icon}</span>
                     <span>{link.title}</span>
@@ -352,14 +348,10 @@ export default function ProfilePage() {
               </div>
             )}
 
-            {/* Views + footer */}
+            {/* Footer */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: isCenter ? 'center' : 'flex-start', gap: 16, paddingTop: 16, borderTop: `1px solid ${textColor}10` }}>
-              <span style={{ fontSize: 12, color: `${textColor}44` }}>
-                👁 {views.toLocaleString()} views
-              </span>
-              <Link href="/" style={{ fontSize: 12, color: `${textColor}33`, marginLeft: 'auto' }}>
-                oniion.cc
-              </Link>
+              <span style={{ fontSize: 12, color: `${textColor}44` }}>👁 {views.toLocaleString()} views</span>
+              <Link href="/" style={{ fontSize: 12, color: `${textColor}33`, marginLeft: 'auto' }}>oniion.cc</Link>
             </div>
           </div>
         </div>

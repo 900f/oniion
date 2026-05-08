@@ -42,6 +42,8 @@ export async function initDB() {
       badge_color TEXT DEFAULT '#a855f7',
       cursor_effect VARCHAR(20) DEFAULT 'none',
       card_style VARCHAR(20) DEFAULT 'glass',
+      custom_font_url TEXT,
+      custom_font_name VARCHAR(128),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     )
   `;

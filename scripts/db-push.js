@@ -48,10 +48,17 @@ async function main() {
       badge_color TEXT DEFAULT '#a855f7',
       cursor_effect VARCHAR(20) DEFAULT 'none',
       card_style VARCHAR(20) DEFAULT 'glass',
+      custom_font_url TEXT,
+      custom_font_name VARCHAR(128),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     )
   `;
   console.log('✓ profiles table');
+
+  // Safe migrations for existing databases
+  await sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS custom_font_url TEXT`;
+  await sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS custom_font_name VARCHAR(128)`;
+  console.log('✓ custom font columns (migration)');
 
   await sql`
     CREATE TABLE IF NOT EXISTS links (

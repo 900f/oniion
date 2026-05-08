@@ -11,20 +11,21 @@
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.9.0",
+    "@uploadthing/react": "^6.6.0",
     "bcryptjs": "^2.4.3",
     "jose": "^5.2.4",
-    "next": "14.2.3",
-    "react": "^18",
-    "react-dom": "^18",
-    "react-color": "^2.19.3",
-    "uuid": "^9.0.1"
+    "next": "^15.3.2",
+    "react": "^19",
+    "react-dom": "^19",
+    "uploadthing": "^6.13.2",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
-    "@types/uuid": "^9.0.8",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/uuid": "^10.0.0",
     "typescript": "^5"
   }
 }

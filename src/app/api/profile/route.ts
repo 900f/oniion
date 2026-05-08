@@ -31,6 +31,7 @@ export async function PUT(req: NextRequest) {
     font_family, font_effect, page_effect, effect_color,
     layout, blur_enabled, glow_enabled, badge_text, badge_color,
     cursor_effect, card_style, links,
+    custom_font_url, custom_font_name,
   } = body;
 
   await sql`
@@ -58,11 +59,12 @@ export async function PUT(req: NextRequest) {
       badge_color = ${badge_color ?? '#a855f7'},
       cursor_effect = ${cursor_effect ?? 'none'},
       card_style = ${card_style ?? 'glass'},
+      custom_font_url = ${custom_font_url ?? null},
+      custom_font_name = ${custom_font_name ?? null},
       updated_at = NOW()
     WHERE user_id = ${session.userId}
   `;
 
-  // Update links
   if (Array.isArray(links)) {
     await sql`DELETE FROM links WHERE user_id = ${session.userId}`;
     for (let i = 0; i < links.length; i++) {

@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 
-export async function GET(req: NextRequest, { params }: { params: { username: string } }) {
-  const username = params.username.toLowerCase();
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ username: string }> }
+) {
+  const { username } = await params;
+  const lower = username.toLowerCase();
 
-  const [user] = await sql`SELECT id FROM users WHERE username = ${username}`;
+  const [user] = await sql`SELECT id FROM users WHERE username = ${lower}`;
   if (!user) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const [profile] = await sql`SELECT * FROM profiles WHERE user_id = ${user.id}`;
@@ -12,7 +16,7 @@ export async function GET(req: NextRequest, { params }: { params: { username: st
   const [viewCount] = await sql`SELECT total_views FROM view_counts WHERE user_id = ${user.id}`;
 
   return NextResponse.json({
-    username,
+    username: lower,
     userId: user.id,
     profile,
     links,

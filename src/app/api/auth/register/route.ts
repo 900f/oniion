@@ -4,61 +4,46 @@ import sql, { initDB } from '@/lib/db';
 import { signToken } from '@/lib/auth';
 
 const USERNAME_REGEX = /^[a-z0-9_-]{3,32}$/;
-const RESERVED = ['admin', 'api', 'dashboard', 'login', 'register', 'settings', 'help', 'about', 'oniion', 'support'];
+const RESERVED = ['admin','api','dashboard','login','register','settings','help','about','oniion','support'];
 
 export async function POST(req: NextRequest) {
   try {
     await initDB();
     const { username, password } = await req.json();
 
-    if (!username || !password) {
+    if (!username || !password)
       return NextResponse.json({ error: 'Username and password required' }, { status: 400 });
-    }
 
-    const lowerUsername = username.toLowerCase();
+    const lower = username.toLowerCase();
 
-    if (!USERNAME_REGEX.test(lowerUsername)) {
+    if (!USERNAME_REGEX.test(lower))
       return NextResponse.json({ error: 'Username must be 3-32 chars, letters/numbers/_ only' }, { status: 400 });
-    }
 
-    if (RESERVED.includes(lowerUsername)) {
+    if (RESERVED.includes(lower))
       return NextResponse.json({ error: 'This username is reserved' }, { status: 400 });
-    }
 
-    if (password.length < 6) {
+    if (password.length < 6)
       return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 });
-    }
 
-    // Check if taken
-    const existing = await sql`SELECT id FROM users WHERE username = ${lowerUsername}`;
-    if (existing.length > 0) {
+    const existing = await sql`SELECT id FROM users WHERE username = ${lower}`;
+    if (existing.length > 0)
       return NextResponse.json({ error: 'Username already taken' }, { status: 409 });
-    }
 
     const passwordHash = await bcrypt.hash(password, 12);
-
     const [user] = await sql`
       INSERT INTO users (username, password_hash)
-      VALUES (${lowerUsername}, ${passwordHash})
+      VALUES (${lower}, ${passwordHash})
       RETURNING id, username
     `;
 
-    // Create default profile
-    await sql`
-      INSERT INTO profiles (user_id, display_name)
-      VALUES (${user.id}, ${lowerUsername})
-    `;
-
-    // Init view count
-    await sql`
-      INSERT INTO view_counts (user_id, total_views)
-      VALUES (${user.id}, 0)
-    `;
+    await sql`INSERT INTO profiles (user_id, display_name) VALUES (${user.id}, ${lower})`;
+    await sql`INSERT INTO view_counts (user_id, total_views) VALUES (${user.id}, 0)`;
 
     const token = await signToken({ userId: user.id, username: user.username });
-
     const res = NextResponse.json({ success: true, username: user.username });
-    res.cookies.set('auth_token', token, {
+    res.cookies.set({
+      name: 'auth_token',
+      value: token,
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
