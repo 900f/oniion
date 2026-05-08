@@ -11,13 +11,13 @@
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.9.0",
-    "@uploadthing/react": "^6.6.0",
+    "@uploadthing/react": "^7.3.0",
     "bcryptjs": "^2.4.3",
     "jose": "^5.2.4",
     "next": "^15.3.2",
     "react": "^19",
     "react-dom": "^19",
-    "uploadthing": "^6.13.2",
+    "uploadthing": "^7.6.0",
     "uuid": "^11.1.0"
   },
   "devDependencies": {

@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useUploadThing } from '@/lib/uploadthing-client';
 
 const FONTS = [
   'Space Grotesk', 'Syne', 'Playfair Display', 'JetBrains Mono',
@@ -120,6 +121,23 @@ export default function DashboardPage() {
   const [fontUploadError, setFontUploadError] = useState('');
   const fontInputRef = useRef<HTMLInputElement>(null);
 
+  const { startUpload } = useUploadThing('fontUploader', {
+    onClientUploadComplete: (res) => {
+      if (res && res[0]) {
+        const file = res[0];
+        const url = file.ufsUrl || file.url;
+        const fontName = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
+        setProfile(p => ({ ...p, custom_font_url: url, custom_font_name: fontName, font_family: '__custom__' }));
+      }
+      setFontUploading(false);
+    },
+    onUploadError: (err) => {
+      console.error('Upload error:', err);
+      setFontUploadError('Upload failed: ' + err.message);
+      setFontUploading(false);
+    },
+  });
+
   useEffect(() => {
     fetch('/api/auth/session').then(r => r.json()).then(data => {
       if (!data.user) { router.push('/login'); return; }
@@ -154,8 +172,7 @@ export default function DashboardPage() {
   const updateLink = (i: number, field: keyof LinkItem, val: string) =>
     setLinks(l => l.map((lk, idx) => idx === i ? { ...lk, [field]: val } : lk));
 
-  // Font upload via uploadthing
-  const handleFontUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFontFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const ext = file.name.split('.').pop()?.toLowerCase();
@@ -167,49 +184,9 @@ export default function DashboardPage() {
       setFontUploadError('Font file must be under 4MB');
       return;
     }
-
     setFontUploading(true);
     setFontUploadError('');
-
-    try {
-      // Get uploadthing presigned URL
-      const presignRes = await fetch('/api/uploadthing', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          files: [{ name: file.name, size: file.size, type: file.type || 'font/ttf' }],
-          input: {},
-          action: 'upload',
-          slug: 'fontUploader',
-        }),
-      });
-
-      if (!presignRes.ok) throw new Error('Failed to get upload URL');
-      const presignData = await presignRes.json();
-      const { url, fields, key } = presignData[0] || presignData?.data?.[0] || {};
-
-      if (!url) throw new Error('No upload URL returned');
-
-      // Upload the file
-      const formData = new FormData();
-      if (fields) Object.entries(fields).forEach(([k, v]) => formData.append(k, v as string));
-      formData.append('file', file);
-
-      const uploadRes = await fetch(url, { method: 'POST', body: formData });
-      if (!uploadRes.ok && uploadRes.status !== 204) throw new Error('Upload failed');
-
-      // Construct the public URL
-      const fileUrl = `https://utfs.io/f/${key}`;
-      const fontName = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
-
-      setProfile(p => ({ ...p, custom_font_url: fileUrl, custom_font_name: fontName, font_family: `__custom__` }));
-      setFontUploading(false);
-    } catch (err) {
-      console.error('Font upload error:', err);
-      // Fallback: use object URL for preview (won't persist without UT key)
-      setFontUploadError('Upload failed. Check your UPLOADTHING_SECRET in .env.local');
-      setFontUploading(false);
-    }
+    await startUpload([file]);
   };
 
   const clearCustomFont = () => {
@@ -231,7 +208,7 @@ export default function DashboardPage() {
     { key: 'music', label: '🎵 Music' },
   ] as const;
 
-  const usingCustomFont = profile.custom_font_url && profile.font_family === '__custom__';
+  const usingCustomFont = !!(profile.custom_font_url && profile.font_family === '__custom__');
 
   return (
     <div style={{ minHeight: '100vh', background: '#080808' }}>
@@ -339,8 +316,7 @@ export default function DashboardPage() {
             </Section>
 
             <Section title="Font">
-              {/* Custom font upload */}
-              <Field label="Custom Font (upload your own .ttf / .otf / .woff / .woff2)">
+              <Field label="Custom Font — upload your own .ttf / .otf / .woff / .woff2">
                 <div className="glass" style={{ padding: 16, borderRadius: 12, border: usingCustomFont ? '1px solid rgba(168,85,247,0.4)' : '1px solid rgba(255,255,255,0.06)' }}>
                   {usingCustomFont ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -356,16 +332,12 @@ export default function DashboardPage() {
                   ) : (
                     <div
                       onClick={() => fontInputRef.current?.click()}
-                      style={{
-                        border: '2px dashed rgba(255,255,255,0.1)', borderRadius: 10,
-                        padding: '24px 16px', textAlign: 'center', cursor: 'pointer',
-                        transition: 'border-color 0.2s',
-                      }}
+                      style={{ border: '2px dashed rgba(255,255,255,0.1)', borderRadius: 10, padding: '24px 16px', textAlign: 'center', cursor: 'pointer', transition: 'border-color 0.2s' }}
                       onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(168,85,247,0.5)')}
                       onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                     >
                       {fontUploading ? (
-                        <div style={{ color: '#a855f7', fontSize: 13 }}>Uploading...</div>
+                        <div style={{ color: '#a855f7', fontSize: 13 }}>Uploading font...</div>
                       ) : (
                         <>
                           <div style={{ fontSize: 28, marginBottom: 8 }}>🔤</div>
@@ -375,13 +347,7 @@ export default function DashboardPage() {
                       )}
                     </div>
                   )}
-                  <input
-                    ref={fontInputRef}
-                    type="file"
-                    accept=".ttf,.otf,.woff,.woff2"
-                    style={{ display: 'none' }}
-                    onChange={handleFontUpload}
-                  />
+                  <input ref={fontInputRef} type="file" accept=".ttf,.otf,.woff,.woff2" style={{ display: 'none' }} onChange={handleFontFileChange} />
                   {fontUploadError && (
                     <div style={{ marginTop: 8, fontSize: 12, color: '#f87171', padding: '8px 12px', background: 'rgba(239,68,68,0.08)', borderRadius: 8 }}>
                       {fontUploadError}
@@ -390,14 +356,10 @@ export default function DashboardPage() {
                 </div>
               </Field>
 
-              <Field label={usingCustomFont ? 'Preset Font (custom font is active — remove it to use a preset)' : 'Preset Font'}>
-                <select
-                  className="input"
-                  value={usingCustomFont ? '' : profile.font_family}
+              <Field label={usingCustomFont ? 'Preset Font (remove custom font to switch)' : 'Preset Font'}>
+                <select className="input" value={usingCustomFont ? '' : profile.font_family}
                   onChange={e => setProfile(p => ({ ...p, font_family: e.target.value }))}
-                  disabled={!!usingCustomFont}
-                  style={{ opacity: usingCustomFont ? 0.4 : 1 }}
-                >
+                  disabled={usingCustomFont} style={{ opacity: usingCustomFont ? 0.4 : 1 }}>
                   {FONTS.map(f => <option key={f} value={f}>{f}</option>)}
                 </select>
               </Field>
@@ -406,7 +368,7 @@ export default function DashboardPage() {
               <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)' }}>
                 <div style={{ fontSize: 11, color: '#555', marginBottom: 8 }}>PREVIEW</div>
                 {usingCustomFont && (
-                  <style>{`@font-face { font-family: '__custom__'; src: url('${profile.custom_font_url}'); }`}</style>
+                  <style>{`@font-face { font-family: '__custom__'; src: url('${profile.custom_font_url}'); font-display: swap; }`}</style>
                 )}
                 <div style={{ fontFamily: usingCustomFont ? '__custom__' : `'${profile.font_family}', sans-serif`, fontSize: 22, color: '#fff' }}>
                   The quick brown fox
