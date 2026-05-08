@@ -8,7 +8,7 @@ export default function Home() {
   useEffect(() => {
     if (window.location.pathname !== '/') return;
 
-    fetch('/api/track', {
+    fetch('/api/heartbeat', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
