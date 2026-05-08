@@ -27,5 +27,19 @@
     "@types/react-dom": "^19",
     "@types/uuid": "^10.0.0",
     "typescript": "^5"
+  },
+  "overrides": {
+    "esbuild": "^0.25.0",
+    "path-to-regexp": "^8.0.0",
+    "cookie": "^0.7.0",
+    "semver": "^7.6.0",
+    "tough-cookie": "^4.1.4",
+    "ip": "^2.0.1",
+    "follow-redirects": "^1.15.6",
+    "axios": "^1.7.4",
+    "tar": "^6.2.1",
+    "braces": "^3.0.3",
+    "micromatch": "^4.0.8",
+    "undici": "^6.21.1"
   }
 }
