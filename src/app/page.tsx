@@ -6,6 +6,20 @@ export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
+    if (window.location.pathname !== '/') return;
+
+    fetch('/api/track', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        path: window.location.pathname,
+      }),
+    }).catch(console.error);
+  }, []);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -26,20 +40,7 @@ export default function Home() {
       });
     }
 
-    useEffect(() => {
-      if (window.location.pathname !== '/') return;
-
-      fetch('/api/track', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          path: window.location.pathname,
-        }),
-      }).catch(console.error);
-    }, []);
- 
+    
 
     let animId: number;
     function draw() {
