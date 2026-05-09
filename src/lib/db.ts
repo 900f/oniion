@@ -90,9 +90,12 @@ export async function initDB() {
     `ALTER TABLE view_counts ADD COLUMN IF NOT EXISTS daily_hashes JSONB DEFAULT '{}'`,
   ];
   for (const m of migs) {
-    try { await db.unsafe(m); } catch { /* already exists */ }
+    try {
+      await (db as any)(m);
+    } catch {
+      /* already exists */
+    }
   }
-
   // Backfill display_id
   await db`UPDATE users SET display_id = sub.rn FROM (
     SELECT id, ROW_NUMBER() OVER (ORDER BY created_at) AS rn FROM users WHERE display_id IS NULL
