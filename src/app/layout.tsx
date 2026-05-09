@@ -3,23 +3,12 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'oniion.cc — your link in bio',
-  description: 'Build a beautiful bio page at oniion.cc',
+  description: 'Create your personalized bio page at oniion.cc',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
-        <meta name="theme-color" content="#060608"/>
-        <link rel="preconnect" href="https://fonts.googleapis.com"/>
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous"/>
-        <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
-        {/* Favicon — drop your favicon.ico / favicon.png into /public/ */}
-        <link rel="icon" href="/favicon.ico" sizes="any"/>
-        <link rel="icon" href="/favicon.png" type="image/png"/>
-        <link rel="apple-touch-icon" href="/favicon.png"/>
-      </head>
       <body>{children}</body>
     </html>
   );
