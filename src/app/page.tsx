@@ -82,7 +82,7 @@ export default function Home() {
       <div style={{ position: 'fixed', bottom: '20%', right: '15%', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(circle, rgba(59,130,246,0.1) 0%, transparent 70%)', filter: 'blur(40px)', zIndex: 0 }} />
 
       <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, padding: '20px 40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: 22, letterSpacing: '-0.5px' }}>
+        <span style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, fontSize: 22, letterSpacing: '-0.5px' }}>
           <span style={{ color: '#a855f7' }}>oni</span>ion.cc
         </span>
         <div style={{ display: 'flex', gap: 12 }}>
@@ -96,7 +96,7 @@ export default function Home() {
           ✦ your bio. your vibe.
         </div>
 
-        <h1 style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: 'clamp(48px, 8vw, 86px)', lineHeight: 1, letterSpacing: '-3px', marginBottom: 24 }}>
+        <h1 style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, fontSize: 'clamp(48px, 8vw, 86px)', lineHeight: 1, letterSpacing: '-3px', marginBottom: 24 }}>
           One link.<br />
           <span style={{ background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 50%, #3b82f6 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
             Infinite you.
