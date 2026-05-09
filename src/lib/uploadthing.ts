@@ -4,21 +4,27 @@ import { getSession } from "@/lib/auth";
 
 const f = createUploadthing();
 
+const authMiddleware = async () => {
+  const session = await getSession();
+  if (!session) throw new UploadThingError("Unauthorized");
+  return { userId: session.userId };
+};
+
 export const ourFileRouter = {
-  fontUploader: f({
-    blob: {
-      maxFileSize: "4MB",
-      maxFileCount: 1,
-    },
+  fontUploader: f({ blob: { maxFileSize: "4MB", maxFileCount: 1 } })
+    .middleware(authMiddleware)
+    .onUploadComplete(async ({ metadata, file }) => ({
+      uploadedBy: metadata.userId, url: file.ufsUrl, name: file.name,
+    })),
+
+  imageUploader: f({
+    image: { maxFileSize: "8MB", maxFileCount: 1 },
+    "image/gif": { maxFileSize: "8MB", maxFileCount: 1 },
   })
-    .middleware(async () => {
-      const session = await getSession();
-      if (!session) throw new UploadThingError("Unauthorized");
-      return { userId: session.userId };
-    })
-    .onUploadComplete(async ({ metadata, file }) => {
-      return { uploadedBy: metadata.userId, url: file.ufsUrl, name: file.name };
-    }),
+    .middleware(authMiddleware)
+    .onUploadComplete(async ({ metadata, file }) => ({
+      uploadedBy: metadata.userId, url: file.ufsUrl, name: file.name,
+    })),
 } satisfies FileRouter;
 
 export type OurFileRouter = typeof ourFileRouter;
