@@ -12,8 +12,13 @@ export function getDb(): NeonQueryFunction<false, false> {
 }
 
 export default new Proxy({} as NeonQueryFunction<false, false>, {
-  apply(_t, _this, args) { return (getDb() as unknown as (...a: unknown[]) => unknown)(...args); },
-  get(_t, prop) { return (getDb() as unknown as Record<string, unknown>)[prop]; },
+  apply(_t, _this, args) {
+    return (getDb() as unknown as (...a: unknown[]) => unknown)(...args);
+  },
+
+  get(_t, prop: string | symbol) {
+    return (getDb() as any)[prop];
+  },
 }) as NeonQueryFunction<false, false>;
 
 export async function initDB() {
