@@ -1,508 +1,469 @@
 'use client';
+export const dynamic = 'force-dynamic';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useUploadThing } from '@/lib/uploadthing-client';
+import { CustomSelect } from '@/components/custom-select';
+import { SocialIcons, SOCIAL_OPTIONS, detectSocialIcon } from '@/components/social-icons';
+import {
+  IconUser, IconPalette, IconSparkles, IconLink, IconMusic,
+  IconSave, IconLogOut, IconExternalLink, IconPlus, IconX,
+  IconEye, IconUpload, IconFont, IconHash, IconCheck,
+  IconImage, IconCamera, IconLayout, IconDroplet, IconType,
+  IconMousePointer, IconWand, IconCrown, IconSettings,
+} from '@/components/icons';
 
-const FONTS = [
-  'Space Grotesk', 'Syne', 'Playfair Display', 'JetBrains Mono',
-  'Bebas Neue', 'Dancing Script', 'Orbitron', 'Cinzel', 'Permanent Marker',
+const FONTS = ['Space Grotesk','Playfair Display','JetBrains Mono','Bebas Neue','Dancing Script','Orbitron','Cinzel','Permanent Marker'];
+const NAME_FONTS = [
+  {value:'orbitron',label:'Orbitron (tech)'},
+  {value:'space-grotesk',label:'Space Grotesk'},
+  {value:'playfair',label:'Playfair Display'},
+  {value:'bebas',label:'Bebas Neue'},
+  {value:'cinzel',label:'Cinzel'},
+  {value:'custom',label:'Same as body font'},
 ];
-
 const FONT_EFFECTS = [
-  { value: 'none', label: 'None' },
-  { value: 'shimmer', label: '✨ Shimmer' },
-  { value: 'glow', label: '💫 Glow' },
-  { value: 'glitch', label: '⚡ Glitch' },
-  { value: 'neon', label: '🌟 Neon' },
-  { value: 'shadow', label: '🌑 Shadow' },
-  { value: 'outline', label: '◻ Outline' },
+  {value:'none',label:'None'},{value:'shimmer',label:'Shimmer'},{value:'glow',label:'Glow'},
+  {value:'glitch',label:'Glitch'},{value:'neon',label:'Neon'},{value:'shadow',label:'Shadow'},{value:'outline',label:'Outline'},
 ];
-
 const PAGE_EFFECTS = [
-  { value: 'none', label: 'None' },
-  { value: 'snow', label: '❄️ Snow' },
-  { value: 'rain', label: '🌧 Rain' },
-  { value: 'sakura', label: '🌸 Sakura' },
-  { value: 'bubbles', label: '🫧 Bubbles' },
-  { value: 'fireflies', label: '✨ Fireflies' },
-  { value: 'matrix', label: '💻 Matrix' },
+  {value:'none',label:'None'},{value:'particles',label:'Particles'},{value:'snow',label:'Snow'},
+  {value:'rain',label:'Rain'},{value:'sakura',label:'Sakura'},{value:'bubbles',label:'Bubbles'},
+  {value:'fireflies',label:'Fireflies'},{value:'matrix',label:'Matrix'},
 ];
-
 const CURSOR_EFFECTS = [
-  { value: 'none', label: 'Default' },
-  { value: 'trail', label: '✨ Sparkle trail' },
-  { value: 'ring', label: '⭕ Ring' },
-  { value: 'dot', label: '• Dot' },
+  {value:'none',label:'Default cursor'},{value:'trail',label:'Sparkle trail'},
+  {value:'ring',label:'Ring'},{value:'dot',label:'Dot'},
+  {value:'crosshair',label:'Crosshair'},{value:'bubble',label:'Bubble'},
 ];
-
-const CARD_STYLES = [
-  { value: 'glass', label: 'Glass' },
-  { value: 'solid', label: 'Solid' },
-  { value: 'outline', label: 'Outline' },
-  { value: 'neon', label: 'Neon' },
-];
-
+const CARD_STYLES = [{value:'glass',label:'Glass'},{value:'solid',label:'Solid'},{value:'outline',label:'Outline'},{value:'neon',label:'Neon'}];
 const BG_TYPES = [
-  { value: 'color', label: 'Solid Color' },
-  { value: 'gradient', label: 'Gradient' },
-  { value: 'image', label: 'Image URL' },
+  {value:'color',label:'Solid Color'},{value:'gradient',label:'Gradient'},
+  {value:'image',label:'Image / GIF URL'},{value:'particles',label:'Particles'},
+];
+const CRYPTO_COINS = [
+  {value:'eth',label:'Ethereum (ETH)',symbol:'Ξ'},{value:'btc',label:'Bitcoin (BTC)',symbol:'₿'},
+  {value:'sol',label:'Solana (SOL)',symbol:'◎'},{value:'usdt',label:'Tether (USDT)',symbol:'₮'},
+  {value:'bnb',label:'BNB',symbol:'⬡'},{value:'xrp',label:'XRP',symbol:'✕'},
+  {value:'ltc',label:'Litecoin (LTC)',symbol:'Ł'},{value:'doge',label:'Dogecoin',symbol:'Ð'},
+  {value:'ada',label:'Cardano (ADA)',symbol:'₳'},{value:'avax',label:'Avalanche',symbol:'△'},
+  {value:'matic',label:'Polygon (MATIC)',symbol:'⬡'},{value:'trx',label:'TRON (TRX)',symbol:'◆'},
 ];
 
-type LinkItem = { title: string; url: string; icon: string };
-
+type LinkItem = { title:string; url:string; icon:string; link_type:string };
 type Profile = {
-  display_name: string;
-  bio: string;
-  avatar_url: string;
-  banner_url: string;
-  banner_color: string;
-  song_url: string;
-  song_title: string;
-  song_artist: string;
-  background_type: string;
-  background_value: string;
-  text_color: string;
-  accent_color: string;
-  font_family: string;
-  font_effect: string;
-  page_effect: string;
-  effect_color: string;
-  layout: string;
-  blur_enabled: boolean;
-  glow_enabled: boolean;
-  badge_text: string;
-  badge_color: string;
-  cursor_effect: string;
-  card_style: string;
-  custom_font_url: string;
-  custom_font_name: string;
-  total_views?: number;
+  display_name:string; bio:string; avatar_url:string;
+  banner_url:string; banner_color:string;
+  background_image_url:string; card_image_url:string;
+  song_url:string; song_title:string; song_artist:string;
+  background_type:string; background_value:string;
+  text_color:string; accent_color:string; font_family:string;
+  font_effect:string; page_effect:string; effect_color:string;
+  layout:string; card_position:string;
+  blur_enabled:boolean; glow_enabled:boolean;
+  badge_text:string; badge_color:string;
+  cursor_effect:string; card_style:string;
+  custom_font_url:string; custom_font_name:string;
+  // optional feature toggles
+  avatar_orbit:boolean; card_led_border:boolean; card_tilt:boolean;
+  show_views:boolean; show_id:boolean; show_music:boolean;
+  name_font:string;
+  total_views?:number; display_id?:number;
+};
+const DEF: Profile = {
+  display_name:'', bio:'', avatar_url:'', banner_url:'', banner_color:'#0d0d0d',
+  background_image_url:'', card_image_url:'',
+  song_url:'', song_title:'', song_artist:'',
+  background_type:'color', background_value:'#0a0a0a',
+  text_color:'#ffffff', accent_color:'#a855f7', font_family:'Space Grotesk',
+  font_effect:'none', page_effect:'none', effect_color:'#a855f7',
+  layout:'center', card_position:'top', blur_enabled:false, glow_enabled:false,
+  badge_text:'', badge_color:'#a855f7', cursor_effect:'none', card_style:'glass',
+  custom_font_url:'', custom_font_name:'',
+  avatar_orbit:true, card_led_border:true, card_tilt:true,
+  show_views:true, show_id:true, show_music:true, name_font:'orbitron',
 };
 
-const defaultProfile: Profile = {
-  display_name: '',
-  bio: '',
-  avatar_url: '',
-  banner_url: '',
-  banner_color: '#0d0d0d',
-  song_url: '',
-  song_title: '',
-  song_artist: '',
-  background_type: 'color',
-  background_value: '#0a0a0a',
-  text_color: '#ffffff',
-  accent_color: '#a855f7',
-  font_family: 'Space Grotesk',
-  font_effect: 'none',
-  page_effect: 'none',
-  effect_color: '#a855f7',
-  layout: 'center',
-  blur_enabled: false,
-  glow_enabled: false,
-  badge_text: '',
-  badge_color: '#a855f7',
-  cursor_effect: 'none',
-  card_style: 'glass',
-  custom_font_url: '',
-  custom_font_name: '',
-};
+const TABS = [
+  {key:'profile',label:'Profile',icon:<IconUser size={13}/>},
+  {key:'appearance',label:'Style',icon:<IconPalette size={13}/>},
+  {key:'effects',label:'Effects',icon:<IconSparkles size={13}/>},
+  {key:'links',label:'Links',icon:<IconLink size={13}/>},
+  {key:'music',label:'Music',icon:<IconMusic size={13}/>},
+  {key:'extras',label:'Extras',icon:<IconSettings size={13}/>},
+] as const;
+type Tab = typeof TABS[number]['key'];
 
-export default function DashboardPage() {
-  const router = useRouter();
-  const [user, setUser] = useState<{ username: string } | null>(null);
-  const [profile, setProfile] = useState<Profile>(defaultProfile);
-  const [links, setLinks] = useState<LinkItem[]>([]);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [activeTab, setActiveTab] = useState<'profile' | 'appearance' | 'effects' | 'links' | 'music'>('profile');
-  const [loading, setLoading] = useState(true);
-  const [fontUploading, setFontUploading] = useState(false);
-  const [fontUploadError, setFontUploadError] = useState('');
-  const fontInputRef = useRef<HTMLInputElement>(null);
+function Toggle({label, desc, checked, onChange}: {label:string; desc?:string; checked:boolean; onChange:(v:boolean)=>void}) {
+  return (
+    <label style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,cursor:'pointer',padding:'10px 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
+      <div>
+        <div style={{fontSize:13,fontWeight:500,color:'#ccc'}}>{label}</div>
+        {desc && <div style={{fontSize:11,color:'#444',marginTop:2}}>{desc}</div>}
+      </div>
+      <div onClick={()=>onChange(!checked)} style={{
+        width:38,height:22,borderRadius:11,
+        background:checked?'#a855f7':'rgba(255,255,255,0.1)',
+        position:'relative',transition:'background 0.2s',flexShrink:0,cursor:'pointer',
+      }}>
+        <div style={{
+          position:'absolute',top:3,left:checked?17:3,width:16,height:16,
+          borderRadius:'50%',background:'#fff',transition:'left 0.2s',
+        }}/>
+      </div>
+    </label>
+  );
+}
 
-  const { startUpload } = useUploadThing('fontUploader', {
-    onClientUploadComplete: (res) => {
-      if (res && res[0]) {
-        const file = res[0];
-        const url = file.ufsUrl || file.url;
-        const fontName = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
-        setProfile(p => ({ ...p, custom_font_url: url, custom_font_name: fontName, font_family: '__custom__' }));
-      }
+function ImgUpload({label,value,onChange}:{label:string;value:string;onChange:(url:string)=>void}) {
+  const [uploading,setUploading]=useState(false);
+  const [err,setErr]=useState('');
+  const ref=useRef<HTMLInputElement>(null);
+  const {startUpload}=useUploadThing('imageUploader',{
+    onClientUploadComplete:(res)=>{
+      if(res?.[0]){const f=res[0];onChange((f as {ufsUrl?:string;url?:string}).ufsUrl||f.url||'');}
+      setUploading(false);
+    },
+    onUploadError:(e)=>{setErr(e.message);setUploading(false);},
+  });
+  return (
+    <div>
+      <label style={{display:'block',fontSize:12,color:'#555',marginBottom:6,fontWeight:500}}>{label}</label>
+      <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+        {value&&<img src={value} alt="" style={{width:40,height:40,borderRadius:8,objectFit:'cover',flexShrink:0,border:'1px solid rgba(255,255,255,0.08)'}}/>}
+        <input className="input" value={value} onChange={e=>onChange(e.target.value)} placeholder="https://… or upload" style={{flex:1,minWidth:100}}/>
+        <button type="button" onClick={()=>ref.current?.click()} className="btn btn-ghost" style={{fontSize:11,padding:'8px 10px',flexShrink:0,gap:4}} disabled={uploading}>
+          <IconUpload size={12}/>{uploading?'…':'Upload'}
+        </button>
+        <input ref={ref} type="file" accept="image/*,.gif" style={{display:'none'}} onChange={async e=>{
+          const f=e.target.files?.[0];if(!f)return;
+          if(f.size>8*1024*1024){setErr('Max 8MB');return;}
+          setUploading(true);setErr('');await startUpload([f]);
+        }}/>
+      </div>
+      {err&&<div style={{fontSize:11,color:'#f87171',marginTop:3}}>{err}</div>}
+    </div>
+  );
+}
+
+export default function Dashboard() {
+  const router=useRouter();
+  const [user,setUser]=useState<{username:string}|null>(null);
+  const [profile,setProfile]=useState<Profile>(DEF);
+  const [links,setLinks]=useState<LinkItem[]>([]);
+  const [saving,setSaving]=useState(false);
+  const [saved,setSaved]=useState(false);
+  const [tab,setTab]=useState<Tab>('profile');
+  const [loading,setLoading]=useState(true);
+  const [fontUploading,setFontUploading]=useState(false);
+  const [fontError,setFontError]=useState('');
+  const fontRef=useRef<HTMLInputElement>(null);
+  const set=(k:keyof Profile,v:unknown)=>setProfile(p=>({...p,[k]:v}));
+
+  const {startUpload:uploadFont}=useUploadThing('fontUploader',{
+    onClientUploadComplete:(res)=>{
+      if(res?.[0]){const f=res[0];const url=(f as {ufsUrl?:string;url?:string}).ufsUrl||f.url||'';
+        const name=f.name.replace(/\.[^.]+$/,'').replace(/[-_]/g,' ');
+        setProfile(p=>({...p,custom_font_url:url,custom_font_name:name,font_family:'__custom__'}));}
       setFontUploading(false);
     },
-    onUploadError: (err) => {
-      console.error('Upload error:', err);
-      setFontUploadError('Upload failed: ' + err.message);
-      setFontUploading(false);
-    },
+    onUploadError:(e)=>{setFontError(e.message);setFontUploading(false);},
   });
 
-  useEffect(() => {
-    fetch('/api/auth/session').then(r => r.json()).then(data => {
-      if (!data.user) { router.push('/login'); return; }
-      setUser(data.user);
-      fetch('/api/profile').then(r => r.json()).then(d => {
-        if (d.profile) setProfile({ ...defaultProfile, ...d.profile });
-        if (d.links) setLinks(d.links);
+  useEffect(()=>{
+    fetch('/api/auth/session').then(r=>r.json()).then(d=>{
+      if(!d.user){router.push('/login');return;}
+      setUser(d.user);
+      fetch('/api/profile').then(r=>r.json()).then(d2=>{
+        if(d2.profile)setProfile({...DEF,...d2.profile,
+          avatar_orbit:d2.profile.avatar_orbit??true,
+          card_led_border:d2.profile.card_led_border??true,
+          card_tilt:d2.profile.card_tilt??true,
+          show_views:d2.profile.show_views??true,
+          show_id:d2.profile.show_id??true,
+          show_music:d2.profile.show_music??true,
+          name_font:d2.profile.name_font||'orbitron',
+        });
+        if(d2.links)setLinks(d2.links.map((l:LinkItem)=>({...l,link_type:l.link_type||'url'})));
         setLoading(false);
       });
     });
-  }, [router]);
+  },[router]);
 
-  const save = useCallback(async () => {
+  const save=useCallback(async()=>{
     setSaving(true);
-    await fetch('/api/profile', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...profile, links }),
-    });
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  }, [profile, links]);
+    await fetch('/api/profile',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({...profile,links})});
+    setSaving(false);setSaved(true);setTimeout(()=>setSaved(false),2000);
+  },[profile,links]);
 
-  const logout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    router.push('/');
-  };
+  const logout=async()=>{await fetch('/api/auth/logout',{method:'POST'});router.push('/');};
 
-  const addLink = () => setLinks(l => [...l, { title: '', url: '', icon: '🔗' }]);
-  const removeLink = (i: number) => setLinks(l => l.filter((_, idx) => idx !== i));
-  const updateLink = (i: number, field: keyof LinkItem, val: string) =>
-    setLinks(l => l.map((lk, idx) => idx === i ? { ...lk, [field]: val } : lk));
+  const usingCustomFont=!!(profile.custom_font_url&&profile.font_family==='__custom__');
+  const views=Number(profile.total_views??0).toLocaleString();
 
-  const handleFontFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const ext = file.name.split('.').pop()?.toLowerCase();
-    if (!['ttf', 'otf', 'woff', 'woff2'].includes(ext || '')) {
-      setFontUploadError('Only .ttf, .otf, .woff, .woff2 files are supported');
-      return;
-    }
-    if (file.size > 4 * 1024 * 1024) {
-      setFontUploadError('Font file must be under 4MB');
-      return;
-    }
-    setFontUploading(true);
-    setFontUploadError('');
-    await startUpload([file]);
-  };
-
-  const clearCustomFont = () => {
-    setProfile(p => ({ ...p, custom_font_url: '', custom_font_name: '', font_family: 'Space Grotesk' }));
-    if (fontInputRef.current) fontInputRef.current.value = '';
-  };
-
-  if (loading) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ color: '#666', fontSize: 14 }}>Loading...</div>
-    </div>
-  );
-
-  const tabs = [
-    { key: 'profile', label: '👤 Profile' },
-    { key: 'appearance', label: '🎨 Appearance' },
-    { key: 'effects', label: '✨ Effects' },
-    { key: 'links', label: '🔗 Links' },
-    { key: 'music', label: '🎵 Music' },
-  ] as const;
-
-  const usingCustomFont = !!(profile.custom_font_url && profile.font_family === '__custom__');
+  if(loading) return <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',color:'#333',fontSize:13}}>Loading…</div>;
 
   return (
-    <div style={{ minHeight: '100vh', background: '#080808' }}>
-      <nav style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '0 32px', display: 'flex', alignItems: 'center', gap: 16, height: 56, position: 'sticky', top: 0, background: 'rgba(8,8,8,0.9)', backdropFilter: 'blur(12px)', zIndex: 100 }}>
-        <Link href="/" style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: 18, marginRight: 'auto' }}>
-          <span style={{ color: '#a855f7' }}>oni</span>ion.cc
+    <div style={{minHeight:'100vh',background:'#0A0A1A'}}>
+      {/* Topbar */}
+      <nav style={{borderBottom:'1px solid rgba(255,255,255,0.05)',padding:'0 16px',display:'flex',alignItems:'center',gap:8,height:52,position:'sticky',top:0,background:'rgba(10,10,26,0.97)',backdropFilter:'blur(12px)',zIndex:200}}>
+        <Link href="/" style={{fontWeight:800,fontSize:17,marginRight:'auto',flexShrink:0}}>
+          <span style={{color:'#a855f7'}}>oni</span>ion.cc
         </Link>
-        <span style={{ fontSize: 12, color: '#555' }}>👁 {profile.total_views ?? 0} views</span>
-        <Link href={`/${user?.username}`} target="_blank" className="btn btn-ghost" style={{ fontSize: 12, padding: '6px 14px' }}>View profile ↗</Link>
-        <button onClick={save} className="btn btn-primary" style={{ fontSize: 12, padding: '6px 16px' }} disabled={saving}>
-          {saving ? 'Saving...' : saved ? '✓ Saved!' : 'Save'}
+        <span style={{fontSize:11,color:'#444',display:'flex',alignItems:'center',gap:4,flexShrink:0}}>
+          <IconEye size={11}/>{views}
+        </span>
+        {profile.display_id&&<span style={{fontSize:11,color:'#333',display:'flex',alignItems:'center',gap:2,flexShrink:0}}>
+          <IconHash size={10}/>{profile.display_id}
+        </span>}
+        <Link href={`/${user?.username}`} target="_blank" className="btn btn-ghost" style={{fontSize:11,padding:'5px 10px',flexShrink:0,gap:4}}>
+          <IconExternalLink size={11}/>View
+        </Link>
+        <button onClick={save} className="btn btn-primary" style={{fontSize:11,padding:'5px 12px',flexShrink:0,gap:4}} disabled={saving}>
+          {saved?<><IconCheck size={11}/>Saved</>:<><IconSave size={11}/>{saving?'Saving…':'Save'}</>}
         </button>
-        <button onClick={logout} className="btn btn-ghost" style={{ fontSize: 12, padding: '6px 14px', color: '#666' }}>Sign out</button>
+        <button onClick={logout} style={{background:'none',border:'none',color:'#444',cursor:'pointer',padding:'5px',flexShrink:0,display:'flex'}}><IconLogOut size={15}/></button>
       </nav>
 
-      <div style={{ maxWidth: 820, margin: '0 auto', padding: '32px 20px' }}>
-        <div style={{ marginBottom: 32 }}>
-          <h1 style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 24, letterSpacing: '-0.5px', marginBottom: 4 }}>Dashboard</h1>
-          <p style={{ color: '#555', fontSize: 14 }}>oniion.cc/<span style={{ color: '#a855f7' }}>{user?.username}</span></p>
+      <div style={{maxWidth:780,margin:'0 auto',padding:'20px 14px 80px'}}>
+        <div style={{marginBottom:20}}>
+          <h1 style={{fontWeight:700,fontSize:21,letterSpacing:'-0.5px',marginBottom:2}}>Dashboard</h1>
+          <p style={{color:'#444',fontSize:12}}>oniion.cc/<span style={{color:'#a855f7'}}>{user?.username}</span></p>
         </div>
 
-        <div style={{ display: 'flex', gap: 4, marginBottom: 28, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          {tabs.map(t => (
-            <button key={t.key} onClick={() => setActiveTab(t.key)} style={{
-              background: 'none', border: 'none', color: activeTab === t.key ? '#fff' : '#555',
-              fontSize: 13, padding: '10px 16px', cursor: 'pointer', fontFamily: 'inherit',
-              borderBottom: activeTab === t.key ? '2px solid #a855f7' : '2px solid transparent',
-              marginBottom: -1, transition: 'all 0.15s', fontWeight: activeTab === t.key ? 600 : 400,
-            }}>{t.label}</button>
+        {/* Tabs */}
+        <div style={{display:'flex',gap:2,marginBottom:20,overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
+          {TABS.map(t=>(
+            <button key={t.key} onClick={()=>setTab(t.key)} style={{
+              background:tab===t.key?'rgba(168,85,247,0.1)':'none',
+              border:tab===t.key?'1px solid rgba(168,85,247,0.22)':'1px solid transparent',
+              color:tab===t.key?'#c084fc':'#555',
+              fontSize:12,padding:'7px 12px',cursor:'pointer',fontFamily:'inherit',
+              borderRadius:8,fontWeight:tab===t.key?600:400,
+              display:'flex',alignItems:'center',gap:5,flexShrink:0,transition:'all 0.15s',
+            }}>{t.icon}{t.label}</button>
           ))}
         </div>
 
-        {/* PROFILE TAB */}
-        {activeTab === 'profile' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <Section title="Basic Info">
-              <Field label="Display Name">
-                <input className="input" value={profile.display_name} onChange={e => setProfile(p => ({ ...p, display_name: e.target.value }))} placeholder="Your name" maxLength={64} />
-              </Field>
-              <Field label="Bio">
-                <textarea className="input" value={profile.bio} onChange={e => setProfile(p => ({ ...p, bio: e.target.value }))} placeholder="Tell the world about yourself..." maxLength={300} rows={4} />
-              </Field>
-              <Field label="Avatar URL">
-                <input className="input" value={profile.avatar_url} onChange={e => setProfile(p => ({ ...p, avatar_url: e.target.value }))} placeholder="https://example.com/avatar.jpg" />
-              </Field>
-              <Field label="Badge Text (optional)">
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input className="input" value={profile.badge_text} onChange={e => setProfile(p => ({ ...p, badge_text: e.target.value }))} placeholder="e.g. he/him, admin, artist" maxLength={64} />
-                  <input type="color" value={profile.badge_color} onChange={e => setProfile(p => ({ ...p, badge_color: e.target.value }))} style={{ width: 44, height: 42, border: 'none', borderRadius: 8, cursor: 'pointer', background: 'none', padding: 2 }} />
-                </div>
-              </Field>
-            </Section>
-            <Section title="Banner">
-              <Field label="Banner Image URL (leave empty to use color)">
-                <input className="input" value={profile.banner_url} onChange={e => setProfile(p => ({ ...p, banner_url: e.target.value }))} placeholder="https://example.com/banner.jpg" />
-              </Field>
-              <Field label="Banner Color (if no image)">
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <input type="color" value={profile.banner_color} onChange={e => setProfile(p => ({ ...p, banner_color: e.target.value }))} style={{ width: 44, height: 42, border: 'none', borderRadius: 8, cursor: 'pointer' }} />
-                  <span style={{ color: '#666', fontSize: 13 }}>{profile.banner_color}</span>
-                </div>
-              </Field>
-            </Section>
-          </div>
-        )}
-
-        {/* APPEARANCE TAB */}
-        {activeTab === 'appearance' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <Section title="Background">
-              <Field label="Background Type">
-                <div style={{ display: 'flex', gap: 8 }}>
-                  {BG_TYPES.map(t => (
-                    <button key={t.value} onClick={() => setProfile(p => ({ ...p, background_type: t.value }))}
-                      className={profile.background_type === t.value ? 'btn btn-primary' : 'btn btn-ghost'}
-                      style={{ fontSize: 12, padding: '8px 14px' }}>{t.label}</button>
-                  ))}
-                </div>
-              </Field>
-              <Field label={profile.background_type === 'color' ? 'Color' : profile.background_type === 'gradient' ? 'CSS Gradient' : 'Image URL'}>
-                {profile.background_type === 'color' ? (
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <input type="color" value={profile.background_value} onChange={e => setProfile(p => ({ ...p, background_value: e.target.value }))} style={{ width: 44, height: 42, border: 'none', borderRadius: 8, cursor: 'pointer' }} />
-                    <input className="input" value={profile.background_value} onChange={e => setProfile(p => ({ ...p, background_value: e.target.value }))} placeholder="#0a0a0a" />
-                  </div>
-                ) : (
-                  <input className="input" value={profile.background_value} onChange={e => setProfile(p => ({ ...p, background_value: e.target.value }))} placeholder={profile.background_type === 'gradient' ? 'linear-gradient(135deg, #0a0a0a, #1a0a2a)' : 'https://...'} />
-                )}
-              </Field>
-            </Section>
-
-            <Section title="Colors">
-              <Field label="Text Color">
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <input type="color" value={profile.text_color} onChange={e => setProfile(p => ({ ...p, text_color: e.target.value }))} style={{ width: 44, height: 42, border: 'none', borderRadius: 8, cursor: 'pointer' }} />
-                  <input className="input" value={profile.text_color} onChange={e => setProfile(p => ({ ...p, text_color: e.target.value }))} />
-                </div>
-              </Field>
-              <Field label="Accent Color">
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <input type="color" value={profile.accent_color} onChange={e => setProfile(p => ({ ...p, accent_color: e.target.value }))} style={{ width: 44, height: 42, border: 'none', borderRadius: 8, cursor: 'pointer' }} />
-                  <input className="input" value={profile.accent_color} onChange={e => setProfile(p => ({ ...p, accent_color: e.target.value }))} />
-                </div>
-              </Field>
-            </Section>
-
-            <Section title="Font">
-              <Field label="Custom Font — upload your own .ttf / .otf / .woff / .woff2">
-                <div className="glass" style={{ padding: 16, borderRadius: 12, border: usingCustomFont ? '1px solid rgba(168,85,247,0.4)' : '1px solid rgba(255,255,255,0.06)' }}>
-                  {usingCustomFont ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <span style={{ fontSize: 20 }}>🔤</span>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{profile.custom_font_name}</div>
-                        <div style={{ fontSize: 11, color: '#555', marginTop: 2 }}>Custom font — active</div>
-                      </div>
-                      <button onClick={clearCustomFont} className="btn btn-ghost" style={{ fontSize: 12, padding: '6px 12px', color: '#f87171' }}>
-                        ✕ Remove
-                      </button>
-                    </div>
-                  ) : (
-                    <div
-                      onClick={() => fontInputRef.current?.click()}
-                      style={{ border: '2px dashed rgba(255,255,255,0.1)', borderRadius: 10, padding: '24px 16px', textAlign: 'center', cursor: 'pointer', transition: 'border-color 0.2s' }}
-                      onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(168,85,247,0.5)')}
-                      onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
-                    >
-                      {fontUploading ? (
-                        <div style={{ color: '#a855f7', fontSize: 13 }}>Uploading font...</div>
-                      ) : (
-                        <>
-                          <div style={{ fontSize: 28, marginBottom: 8 }}>🔤</div>
-                          <div style={{ fontSize: 13, color: '#888', marginBottom: 4 }}>Click to upload your font file</div>
-                          <div style={{ fontSize: 11, color: '#555' }}>.ttf • .otf • .woff • .woff2 — max 4MB</div>
-                        </>
-                      )}
-                    </div>
-                  )}
-                  <input ref={fontInputRef} type="file" accept=".ttf,.otf,.woff,.woff2" style={{ display: 'none' }} onChange={handleFontFileChange} />
-                  {fontUploadError && (
-                    <div style={{ marginTop: 8, fontSize: 12, color: '#f87171', padding: '8px 12px', background: 'rgba(239,68,68,0.08)', borderRadius: 8 }}>
-                      {fontUploadError}
-                    </div>
-                  )}
-                </div>
-              </Field>
-
-              <Field label={usingCustomFont ? 'Preset Font (remove custom font to switch)' : 'Preset Font'}>
-                <select className="input" value={usingCustomFont ? '' : profile.font_family}
-                  onChange={e => setProfile(p => ({ ...p, font_family: e.target.value }))}
-                  disabled={usingCustomFont} style={{ opacity: usingCustomFont ? 0.4 : 1 }}>
-                  {FONTS.map(f => <option key={f} value={f}>{f}</option>)}
-                </select>
-              </Field>
-
-              {/* Live preview */}
-              <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)' }}>
-                <div style={{ fontSize: 11, color: '#555', marginBottom: 8 }}>PREVIEW</div>
-                {usingCustomFont && (
-                  <style>{`@font-face { font-family: '__custom__'; src: url('${profile.custom_font_url}'); font-display: swap; }`}</style>
-                )}
-                <div style={{ fontFamily: usingCustomFont ? '__custom__' : `'${profile.font_family}', sans-serif`, fontSize: 22, color: '#fff' }}>
-                  The quick brown fox
-                </div>
-                <div style={{ fontFamily: usingCustomFont ? '__custom__' : `'${profile.font_family}', sans-serif`, fontSize: 14, color: '#888', marginTop: 4 }}>
-                  AaBbCcDd 0123456789 !@#$
-                </div>
+        {/* ── PROFILE ── */}
+        {tab==='profile'&&<div style={{display:'flex',flexDirection:'column',gap:14}}>
+          <Card title="Identity" icon={<IconUser size={12}/>}>
+            <Field label="Display Name"><input className="input" value={profile.display_name} onChange={e=>set('display_name',e.target.value)} placeholder="Your name" maxLength={64}/></Field>
+            <Field label="Bio"><textarea className="input" value={profile.bio} onChange={e=>set('bio',e.target.value)} placeholder="Tell the world about yourself…" maxLength={300} rows={3}/></Field>
+            <Field label="Badge text (optional)">
+              <div style={{display:'flex',gap:8}}>
+                <input className="input" value={profile.badge_text} onChange={e=>set('badge_text',e.target.value)} placeholder="e.g. artist, she/her" maxLength={64}/>
+                <input type="color" value={profile.badge_color} onChange={e=>set('badge_color',e.target.value)} style={{width:42,height:40,border:'none',borderRadius:8,cursor:'pointer',padding:2,background:'none',flexShrink:0}}/>
               </div>
-            </Section>
+            </Field>
+          </Card>
+          <Card title="Images" icon={<IconCamera size={12}/>}>
+            <ImgUpload label="Profile Picture (supports GIF)" value={profile.avatar_url} onChange={v=>set('avatar_url',v)}/>
+            <ImgUpload label="Banner (optional, supports GIF)" value={profile.banner_url} onChange={v=>set('banner_url',v)}/>
+            <Field label="Banner Fallback Color">
+              <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                <input type="color" value={profile.banner_color} onChange={e=>set('banner_color',e.target.value)} style={{width:42,height:40,border:'none',borderRadius:8,cursor:'pointer',flexShrink:0}}/>
+                <input className="input" value={profile.banner_color} onChange={e=>set('banner_color',e.target.value)}/>
+              </div>
+            </Field>
+          </Card>
+        </div>}
 
-            <Section title="Layout & Card">
-              <Field label="Profile Layout">
-                <div style={{ display: 'flex', gap: 8 }}>
-                  {['center', 'left'].map(l => (
-                    <button key={l} onClick={() => setProfile(p => ({ ...p, layout: l }))}
-                      className={profile.layout === l ? 'btn btn-primary' : 'btn btn-ghost'}
-                      style={{ fontSize: 12, padding: '8px 16px' }}>
-                      {l === 'center' ? '⬛ Centered' : '◧ Left'}
+        {/* ── APPEARANCE ── */}
+        {tab==='appearance'&&<div style={{display:'flex',flexDirection:'column',gap:14}}>
+          <Card title="Background" icon={<IconImage size={12}/>}>
+            <Field label="Type"><CustomSelect value={profile.background_type} onChange={v=>set('background_type',v)} options={BG_TYPES}/></Field>
+            {profile.background_type==='color'&&<Field label="Color">
+              <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                <input type="color" value={profile.background_value} onChange={e=>set('background_value',e.target.value)} style={{width:42,height:40,border:'none',borderRadius:8,cursor:'pointer',flexShrink:0}}/>
+                <input className="input" value={profile.background_value} onChange={e=>set('background_value',e.target.value)}/>
+              </div>
+            </Field>}
+            {profile.background_type==='gradient'&&<Field label="CSS Gradient">
+              <input className="input" value={profile.background_value} onChange={e=>set('background_value',e.target.value)} placeholder="linear-gradient(135deg, #0a0a1a, #1a0a2a)"/>
+            </Field>}
+            {profile.background_type==='image'&&<ImgUpload label="Background Image / GIF" value={profile.background_value} onChange={v=>set('background_value',v)}/>}
+          </Card>
+
+          <Card title="Colors" icon={<IconDroplet size={12}/>}>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+              <Field label="Text">
+                <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                  <input type="color" value={profile.text_color} onChange={e=>set('text_color',e.target.value)} style={{width:42,height:40,border:'none',borderRadius:8,cursor:'pointer',flexShrink:0}}/>
+                  <input className="input" value={profile.text_color} onChange={e=>set('text_color',e.target.value)} style={{minWidth:0}}/>
+                </div>
+              </Field>
+              <Field label="Accent">
+                <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                  <input type="color" value={profile.accent_color} onChange={e=>set('accent_color',e.target.value)} style={{width:42,height:40,border:'none',borderRadius:8,cursor:'pointer',flexShrink:0}}/>
+                  <input className="input" value={profile.accent_color} onChange={e=>set('accent_color',e.target.value)} style={{minWidth:0}}/>
+                </div>
+              </Field>
+            </div>
+          </Card>
+
+          <Card title="Font" icon={<IconType size={12}/>}>
+            <Field label="Name / Title Font">
+              <CustomSelect value={profile.name_font||'orbitron'} onChange={v=>set('name_font',v)} options={NAME_FONTS}/>
+            </Field>
+            <Field label="Upload custom body font (.ttf / .otf / .woff / .woff2)">
+              <div style={{border:usingCustomFont?'1px solid rgba(168,85,247,0.35)':'1px solid rgba(255,255,255,0.06)',borderRadius:12,padding:14,background:'rgba(255,255,255,0.015)'}}>
+                {usingCustomFont?(
+                  <div style={{display:'flex',alignItems:'center',gap:10}}>
+                    <IconFont size={15} color="#a855f7"/>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:13,fontWeight:600}}>{profile.custom_font_name}</div>
+                      <div style={{fontSize:11,color:'#555'}}>Custom font active</div>
+                    </div>
+                    <button onClick={()=>setProfile(p=>({...p,custom_font_url:'',custom_font_name:'',font_family:'Space Grotesk'}))} style={{background:'rgba(239,68,68,0.08)',border:'1px solid rgba(239,68,68,0.18)',color:'#f87171',borderRadius:7,padding:'5px 10px',cursor:'pointer',fontFamily:'inherit',fontSize:12,display:'flex',alignItems:'center',gap:4}}>
+                      <IconX size={11}/>Remove
                     </button>
-                  ))}
-                </div>
-              </Field>
-              <Field label="Card Style">
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {CARD_STYLES.map(s => (
-                    <button key={s.value} onClick={() => setProfile(p => ({ ...p, card_style: s.value }))}
-                      className={profile.card_style === s.value ? 'btn btn-primary' : 'btn btn-ghost'}
-                      style={{ fontSize: 12, padding: '8px 16px' }}>{s.label}</button>
-                  ))}
-                </div>
-              </Field>
-              <Field label="Options">
-                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
-                    <input type="checkbox" checked={profile.blur_enabled} onChange={e => setProfile(p => ({ ...p, blur_enabled: e.target.checked }))} style={{ accentColor: '#a855f7' }} />
-                    Background blur
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
-                    <input type="checkbox" checked={profile.glow_enabled} onChange={e => setProfile(p => ({ ...p, glow_enabled: e.target.checked }))} style={{ accentColor: '#a855f7' }} />
-                    Accent glow
-                  </label>
-                </div>
-              </Field>
-            </Section>
-          </div>
-        )}
-
-        {/* EFFECTS TAB */}
-        {activeTab === 'effects' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <Section title="Font Effect">
-              <Field label="Name/Display Text Effect">
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {FONT_EFFECTS.map(f => (
-                    <button key={f.value} onClick={() => setProfile(p => ({ ...p, font_effect: f.value }))}
-                      className={profile.font_effect === f.value ? 'btn btn-primary' : 'btn btn-ghost'}
-                      style={{ fontSize: 12, padding: '8px 14px' }}>{f.label}</button>
-                  ))}
-                </div>
-              </Field>
-            </Section>
-            <Section title="Page Effect">
-              <Field label="Ambient Effect">
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {PAGE_EFFECTS.map(e => (
-                    <button key={e.value} onClick={() => setProfile(p => ({ ...p, page_effect: e.value }))}
-                      className={profile.page_effect === e.value ? 'btn btn-primary' : 'btn btn-ghost'}
-                      style={{ fontSize: 12, padding: '8px 14px' }}>{e.label}</button>
-                  ))}
-                </div>
-              </Field>
-              <Field label="Effect Color">
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <input type="color" value={profile.effect_color} onChange={e => setProfile(p => ({ ...p, effect_color: e.target.value }))} style={{ width: 44, height: 42, border: 'none', borderRadius: 8, cursor: 'pointer' }} />
-                  <input className="input" value={profile.effect_color} onChange={e => setProfile(p => ({ ...p, effect_color: e.target.value }))} />
-                </div>
-              </Field>
-            </Section>
-            <Section title="Cursor Effect">
-              <Field label="Cursor Style">
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {CURSOR_EFFECTS.map(c => (
-                    <button key={c.value} onClick={() => setProfile(p => ({ ...p, cursor_effect: c.value }))}
-                      className={profile.cursor_effect === c.value ? 'btn btn-primary' : 'btn btn-ghost'}
-                      style={{ fontSize: 12, padding: '8px 14px' }}>{c.label}</button>
-                  ))}
-                </div>
-              </Field>
-            </Section>
-          </div>
-        )}
-
-        {/* LINKS TAB */}
-        {activeTab === 'links' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <Section title="Custom Links">
-              <p style={{ color: '#555', fontSize: 13, marginBottom: 16 }}>Add links to your socials, projects, or anything else.</p>
-              {links.map((link, i) => (
-                <div key={i} className="glass" style={{ padding: '16px', marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <input className="input" value={link.icon} onChange={e => updateLink(i, 'icon', e.target.value)} style={{ width: 60, textAlign: 'center', fontSize: 18 }} placeholder="🔗" maxLength={2} />
-                    <input className="input" value={link.title} onChange={e => updateLink(i, 'title', e.target.value)} placeholder="Link title" style={{ flex: 1 }} maxLength={128} />
-                    <button onClick={() => removeLink(i)} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171', borderRadius: 8, padding: '8px 12px', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>✕</button>
                   </div>
-                  <input className="input" value={link.url} onChange={e => updateLink(i, 'url', e.target.value)} placeholder="https://..." />
-                </div>
-              ))}
-              <button onClick={addLink} className="btn btn-ghost" style={{ width: '100%', justifyContent: 'center' }}>+ Add link</button>
-            </Section>
-          </div>
-        )}
+                ):(
+                  <div className={`upload-zone${fontUploading?' uploading':''}`} onClick={()=>fontRef.current?.click()}>
+                    {fontUploading?<div style={{color:'#a855f7',fontSize:13}}>Uploading…</div>:<>
+                      <IconUpload size={18} color="#444"/>
+                      <div style={{fontSize:13,color:'#555',marginTop:6}}>Click to upload font</div>
+                      <div style={{fontSize:11,color:'#333',marginTop:2}}>.ttf • .otf • .woff • .woff2 — max 4MB</div>
+                    </>}
+                  </div>
+                )}
+                <input ref={fontRef} type="file" accept=".ttf,.otf,.woff,.woff2" style={{display:'none'}} onChange={async e=>{
+                  const f=e.target.files?.[0];if(!f)return;
+                  if(!['ttf','otf','woff','woff2'].includes(f.name.split('.').pop()||'')){setFontError('Only .ttf .otf .woff .woff2');return;}
+                  if(f.size>4*1024*1024){setFontError('Max 4MB');return;}
+                  setFontUploading(true);setFontError('');await uploadFont([f]);
+                }}/>
+                {fontError&&<div style={{marginTop:6,fontSize:12,color:'#f87171'}}>{fontError}</div>}
+              </div>
+            </Field>
+            <Field label={usingCustomFont?'Preset (remove custom to use)':'Preset Body Font'}>
+              <CustomSelect
+                value={usingCustomFont?'__custom__':profile.font_family}
+                onChange={v=>set('font_family',v)}
+                options={[
+                  ...(usingCustomFont?[{value:'__custom__',label:profile.custom_font_name||'Custom font'}]:[]),
+                  ...FONTS.map(f=>({value:f,label:f,preview:<span style={{fontFamily:`'${f}',sans-serif`,fontSize:15,color:'#888'}}>Aa</span>}))
+                ]}
+              />
+            </Field>
+          </Card>
 
-        {/* MUSIC TAB */}
-        {activeTab === 'music' && (
-          <Section title="Music Player">
-            <p style={{ color: '#555', fontSize: 13, marginBottom: 16 }}>Add a song that plays on your profile. Supports direct MP3 URLs.</p>
-            <Field label="Audio URL (direct .mp3 link)">
-              <input className="input" value={profile.song_url} onChange={e => setProfile(p => ({ ...p, song_url: e.target.value }))} placeholder="https://example.com/song.mp3" />
+          <Card title="Layout & Card" icon={<IconLayout size={12}/>}>
+            <Field label="Text Alignment"><CustomSelect value={profile.layout} onChange={v=>set('layout',v)} options={[{value:'center',label:'Centered'},{value:'left',label:'Left aligned'}]}/></Field>
+            <Field label="Card Position"><CustomSelect value={profile.card_position||'top'} onChange={v=>set('card_position',v)} options={[{value:'top',label:'Top of page'},{value:'middle',label:'Middle of screen'}]}/></Field>
+            <Field label="Card Style"><CustomSelect value={profile.card_style} onChange={v=>set('card_style',v)} options={CARD_STYLES}/></Field>
+            <Field label="Card Background Image (optional)">
+              <ImgUpload label="" value={profile.card_image_url} onChange={v=>set('card_image_url',v)}/>
             </Field>
-            <Field label="Song Title">
-              <input className="input" value={profile.song_title} onChange={e => setProfile(p => ({ ...p, song_title: e.target.value }))} placeholder="Song name" maxLength={100} />
-            </Field>
-            <Field label="Artist">
-              <input className="input" value={profile.song_artist} onChange={e => setProfile(p => ({ ...p, song_artist: e.target.value }))} placeholder="Artist name" maxLength={100} />
-            </Field>
-          </Section>
-        )}
+            <div style={{display:'flex',gap:20,flexWrap:'wrap'}}>
+              <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',fontSize:13}}>
+                <input type="checkbox" checked={profile.blur_enabled} onChange={e=>set('blur_enabled',e.target.checked)} style={{accentColor:'#a855f7',width:14,height:14}}/>Blur
+              </label>
+              <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',fontSize:13}}>
+                <input type="checkbox" checked={profile.glow_enabled} onChange={e=>set('glow_enabled',e.target.checked)} style={{accentColor:'#a855f7',width:14,height:14}}/>Glow
+              </label>
+            </div>
+          </Card>
+        </div>}
 
-        <div style={{ marginTop: 32, display: 'flex', gap: 12 }}>
-          <button onClick={save} className="btn btn-primary" disabled={saving} style={{ padding: '12px 32px', fontSize: 14 }}>
-            {saving ? 'Saving...' : saved ? '✓ Saved!' : 'Save all changes'}
+        {/* ── EFFECTS ── */}
+        {tab==='effects'&&<div style={{display:'flex',flexDirection:'column',gap:14}}>
+          <Card title="Name Text Effect" icon={<IconType size={12}/>}>
+            <CustomSelect value={profile.font_effect} onChange={v=>set('font_effect',v)} options={FONT_EFFECTS}/>
+          </Card>
+          <Card title="Page Effect" icon={<IconWand size={12}/>}>
+            <Field label="Effect"><CustomSelect value={profile.page_effect} onChange={v=>set('page_effect',v)} options={PAGE_EFFECTS}/></Field>
+            <Field label="Effect Color">
+              <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                <input type="color" value={profile.effect_color} onChange={e=>set('effect_color',e.target.value)} style={{width:42,height:40,border:'none',borderRadius:8,cursor:'pointer',flexShrink:0}}/>
+                <input className="input" value={profile.effect_color} onChange={e=>set('effect_color',e.target.value)}/>
+              </div>
+            </Field>
+          </Card>
+          <Card title="Cursor Effect" icon={<IconMousePointer size={12}/>}>
+            <CustomSelect value={profile.cursor_effect} onChange={v=>set('cursor_effect',v)} options={CURSOR_EFFECTS}/>
+          </Card>
+        </div>}
+
+        {/* ── LINKS ── */}
+        {tab==='links'&&<div style={{display:'flex',flexDirection:'column',gap:14}}>
+          <Card title="Links & Wallets" icon={<IconLink size={12}/>}>
+            <p style={{color:'#444',fontSize:12,marginBottom:10}}>Add social links, websites, or crypto wallet addresses.</p>
+            {links.map((lk,i)=>(
+              <div key={i} style={{padding:12,background:'rgba(255,255,255,0.02)',border:'1px solid rgba(255,255,255,0.05)',borderRadius:10,marginBottom:8,display:'flex',flexDirection:'column',gap:8}}>
+                {lk.link_type==='crypto'?(
+                  <>
+                    <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                      <div style={{width:36,height:36,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(255,255,255,0.04)',borderRadius:8,flexShrink:0,fontSize:18}}>
+                        {CRYPTO_COINS.find(c=>c.value===lk.icon)?.symbol||'₿'}
+                      </div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <CustomSelect value={lk.icon||'eth'} onChange={v=>setLinks(l=>l.map((x,j)=>j===i?{...x,icon:v}:x))} options={CRYPTO_COINS.map(c=>({value:c.value,label:c.label,preview:<span style={{fontFamily:'monospace',fontSize:14}}>{c.symbol}</span>}))}/>
+                      </div>
+                      <button onClick={()=>setLinks(l=>l.filter((_,j)=>j!==i))} style={{background:'rgba(239,68,68,0.08)',border:'1px solid rgba(239,68,68,0.15)',color:'#f87171',borderRadius:8,padding:8,cursor:'pointer',flexShrink:0,display:'flex'}}><IconX size={12}/></button>
+                    </div>
+                    <input className="input" value={lk.title} onChange={e=>setLinks(l=>l.map((x,j)=>j===i?{...x,title:e.target.value}:x))} placeholder="Label e.g. Donate ETH" maxLength={64}/>
+                    <input className="input" value={lk.url} onChange={e=>setLinks(l=>l.map((x,j)=>j===i?{...x,url:e.target.value}:x))} placeholder="0x… wallet address"/>
+                  </>
+                ):(
+                  <>
+                    <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                      <select value={lk.icon||'link'} onChange={e=>setLinks(l=>l.map((x,j)=>j===i?{...x,icon:e.target.value}:x))} style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:8,padding:'8px 10px',color:'#fff',fontFamily:'inherit',fontSize:12,cursor:'pointer',outline:'none',width:110,flexShrink:0}}>
+                        {SOCIAL_OPTIONS.map(s=><option key={s.key} value={s.key}>{s.label}</option>)}
+                      </select>
+                      <input className="input" value={lk.title} onChange={e=>setLinks(l=>l.map((x,j)=>j===i?{...x,title:e.target.value}:x))} placeholder="Label" style={{flex:1,minWidth:0}} maxLength={128}/>
+                      <button onClick={()=>setLinks(l=>l.filter((_,j)=>j!==i))} style={{background:'rgba(239,68,68,0.08)',border:'1px solid rgba(239,68,68,0.15)',color:'#f87171',borderRadius:8,padding:8,cursor:'pointer',flexShrink:0,display:'flex'}}><IconX size={12}/></button>
+                    </div>
+                    <input className="input" value={lk.url} onChange={e=>{
+                      const v=e.target.value;
+                      const detected=detectSocialIcon(v);
+                      setLinks(l=>l.map((x,j)=>j===i?{...x,url:v,icon:detected!=='link'?detected:x.icon}:x));
+                    }} placeholder="https://…"/>
+                  </>
+                )}
+              </div>
+            ))}
+            <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+              <button onClick={()=>setLinks(l=>[...l,{title:'',url:'',icon:'link',link_type:'url'}])} className="btn btn-ghost" style={{flex:1,justifyContent:'center',gap:5,fontSize:12}}>
+                <IconPlus size={13}/>Add link
+              </button>
+              <button onClick={()=>setLinks(l=>[...l,{title:'',url:'',icon:'eth',link_type:'crypto'}])} className="btn btn-ghost" style={{flex:1,justifyContent:'center',gap:5,fontSize:12}}>
+                <IconCrown size={13}/>Add wallet
+              </button>
+            </div>
+          </Card>
+        </div>}
+
+        {/* ── MUSIC ── */}
+        {tab==='music'&&<Card title="Music Player" icon={<IconMusic size={12}/>}>
+          <p style={{color:'#444',fontSize:12,marginBottom:10}}>Paste a direct .mp3 URL or a YouTube link — audio only.</p>
+          <Field label="Audio / YouTube URL"><input className="input" value={profile.song_url} onChange={e=>set('song_url',e.target.value)} placeholder="https://…/song.mp3  or  youtube.com/watch?v=…"/></Field>
+          <Field label="Song Title"><input className="input" value={profile.song_title} onChange={e=>set('song_title',e.target.value)} placeholder="Song name" maxLength={100}/></Field>
+          <Field label="Artist"><input className="input" value={profile.song_artist} onChange={e=>set('song_artist',e.target.value)} placeholder="Artist name" maxLength={100}/></Field>
+        </Card>}
+
+        {/* ── EXTRAS ── */}
+        {tab==='extras'&&<div style={{display:'flex',flexDirection:'column',gap:14}}>
+          <Card title="Card Animations" icon={<IconSparkles size={12}/>}>
+            <Toggle label="LED border animation" desc="Animated gradient glow around the card" checked={profile.card_led_border} onChange={v=>set('card_led_border',v)}/>
+            <Toggle label="3D tilt on hover" desc="Card tilts in 3D when you move your mouse over it" checked={profile.card_tilt} onChange={v=>set('card_tilt',v)}/>
+            <Toggle label="Avatar orbit ring" desc="Glowing orbit animation around the profile picture" checked={profile.avatar_orbit} onChange={v=>set('avatar_orbit',v)}/>
+          </Card>
+          <Card title="Profile Info" icon={<IconUser size={12}/>}>
+            <Toggle label="Show view counter" desc="Show how many people have visited your profile" checked={profile.show_views} onChange={v=>set('show_views',v)}/>
+            <Toggle label="Show #ID" desc="Show your unique profile number (e.g. #42)" checked={profile.show_id} onChange={v=>set('show_id',v)}/>
+            <Toggle label="Show music player" desc="Show the music player card even when a song is set" checked={profile.show_music} onChange={v=>set('show_music',v)}/>
+          </Card>
+        </div>}
+
+        <div style={{marginTop:20,display:'flex',gap:10,flexWrap:'wrap'}}>
+          <button onClick={save} className="btn btn-primary" disabled={saving} style={{padding:'11px 24px',fontSize:13,gap:6}}>
+            {saved?<><IconCheck size={14}/>Saved!</>:<><IconSave size={14}/>{saving?'Saving…':'Save changes'}</>}
           </button>
-          <Link href={`/${user?.username}`} target="_blank" className="btn btn-ghost" style={{ fontSize: 14, padding: '12px 24px' }}>
-            Preview profile ↗
+          <Link href={`/${user?.username}`} target="_blank" className="btn btn-ghost" style={{fontSize:13,padding:'11px 18px',gap:6}}>
+            <IconExternalLink size={13}/>Preview
           </Link>
         </div>
       </div>
@@ -510,19 +471,20 @@ export default function DashboardPage() {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Card({title,icon,children}:{title:string;icon:React.ReactNode;children:React.ReactNode}) {
   return (
-    <div className="glass" style={{ padding: 24, borderRadius: 16 }}>
-      <h3 style={{ fontSize: 14, fontWeight: 600, color: '#888', marginBottom: 20, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{title}</h3>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>{children}</div>
+    <div style={{background:'rgba(255,255,255,0.015)',border:'1px solid rgba(255,255,255,0.055)',borderRadius:14,padding:'16px 14px'}}>
+      <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:14,color:'#555',fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.07em'}}>
+        {icon}{title}
+      </div>
+      <div style={{display:'flex',flexDirection:'column',gap:12}}>{children}</div>
     </div>
   );
 }
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({label,children}:{label:string;children:React.ReactNode}) {
   return (
     <div>
-      <label style={{ display: 'block', fontSize: 12, color: '#777', marginBottom: 6, fontWeight: 500 }}>{label}</label>
+      {label&&<label style={{display:'block',fontSize:12,color:'#555',marginBottom:5,fontWeight:500}}>{label}</label>}
       {children}
     </div>
   );
