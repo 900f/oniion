@@ -23,9 +23,15 @@ export default new Proxy({} as NeonQueryFunction<false, false>, {
 
 export async function runMigrations() {
   const db = getDb();
+
   const run = async (sql: string) => {
-    try { await db.unsafe(sql); } catch { /* already exists */ }
+    try {
+      await db(sql);
+    } catch {
+      /* already exists */
+    }
   };
+
   await run(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS custom_font_url TEXT`);
   await run(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS custom_font_name VARCHAR(128)`);
   await run(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS background_image_url TEXT`);
@@ -34,6 +40,7 @@ export async function runMigrations() {
   await run(`ALTER TABLE links ADD COLUMN IF NOT EXISTS link_type VARCHAR(20) DEFAULT 'url'`);
   await run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS display_id INTEGER`);
   await run(`ALTER TABLE view_counts ADD COLUMN IF NOT EXISTS daily_hashes JSONB DEFAULT '{}'`);
+
   // New optional feature toggles
   await run(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_orbit BOOLEAN DEFAULT true`);
   await run(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS card_led_border BOOLEAN DEFAULT true`);
