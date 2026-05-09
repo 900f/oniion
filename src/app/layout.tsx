@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'oniion.cc',
+  title: 'Oniion',
   description: 'Create your personalized bio page at oniion.cc',
 };
 
