@@ -196,7 +196,7 @@ export default function ProfilePage() {
   };
   const vid = data?.profile?.song_url ? ytId(data.profile.song_url) : null;
   const isYT = !!vid;
-  const hasSong = !!(data?.profile?.song_url?.trim());  // <-- MOVED HERE
+  const hasSong = !!(data?.profile?.song_url?.trim());
   const toggleYT = () => {
     const f=document.getElementById('yt-pl') as HTMLIFrameElement|null;
     f?.contentWindow?.postMessage(JSON.stringify({event:'command',func:playing?'pauseVideo':'playVideo',args:[]}),'*');
@@ -208,22 +208,18 @@ export default function ProfilePage() {
     
     const audio = audioRef.current;
     
-    // Unmute and play on first user interaction
     const enableAudio = () => {
       audio.muted = false;
       audio.play().then(() => {
         setPlaying(true);
-        // Remove listeners after success
         document.removeEventListener('click', enableAudio);
         document.removeEventListener('touchstart', enableAudio);
         document.removeEventListener('keydown', enableAudio);
       }).catch(e => console.log('Play failed:', e));
     };
     
-    // Try to play immediately (will be muted but playing)
     audio.play().catch(() => console.log('Autoplay waiting for interaction'));
     
-    // Listen for user interaction to unmute
     document.addEventListener('click', enableAudio);
     document.addEventListener('touchstart', enableAudio);
     document.addEventListener('keydown', enableAudio);
