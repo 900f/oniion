@@ -102,7 +102,7 @@ export default function Home() {
 
         <h1 style={{ fontFamily: "'Space Grotesk', sand-serif", fontSize: 'clamp(52px, 10vw, 104px)', lineHeight: 0.95, letterSpacing: '-3px', marginBottom: 28, color: '#f5f0ff', maxWidth: 700 }}>
           One link.<br />
-          <span style={{ color: '#c084fc', fontStyle: 'italic' }}>Infinite you.</span>
+          <span style={{ color: '#c084fc'}}>Infinite you.</span>
         </h1>
 
         <p style={{ fontSize: 16, color: '#555', lineHeight: 1.7, marginBottom: 44, maxWidth: 420 }}>
