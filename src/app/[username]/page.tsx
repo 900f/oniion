@@ -188,8 +188,22 @@ export default function ProfilePage() {
   }, [data]);
 
 
-    /* autoplay unlock - remove mute after user interaction */
-  useEffect(() => {
+  /* audio */
+  const toggleAudio = () => {
+    const a=audioRef.current; if(!a)return;
+    if(playing){a.pause();setPlaying(false);}
+    else a.play().then(()=>setPlaying(true)).catch(()=>{});
+  };
+  const vid = data?.profile?.song_url ? ytId(data.profile.song_url) : null;
+  const isYT = !!vid;
+  const toggleYT = () => {
+    const f=document.getElementById('yt-pl') as HTMLIFrameElement|null;
+    f?.contentWindow?.postMessage(JSON.stringify({event:'command',func:playing?'pauseVideo':'playVideo',args:[]}),'*');
+    setPlaying(v=>!v);
+  };
+
+
+    useEffect(() => {
     if (!hasSong || isYT || !audioRef.current) return;
     
     const audio = audioRef.current;
@@ -221,20 +235,7 @@ export default function ProfilePage() {
     };
   }, [hasSong, isYT]);
 
-  /* audio */
-  const toggleAudio = () => {
-    const a=audioRef.current; if(!a)return;
-    if(playing){a.pause();setPlaying(false);}
-    else a.play().then(()=>setPlaying(true)).catch(()=>{});
-  };
-  const vid = data?.profile?.song_url ? ytId(data.profile.song_url) : null;
-  const isYT = !!vid;
-  const toggleYT = () => {
-    const f=document.getElementById('yt-pl') as HTMLIFrameElement|null;
-    f?.contentWindow?.postMessage(JSON.stringify({event:'command',func:playing?'pauseVideo':'playVideo',args:[]}),'*');
-    setPlaying(v=>!v);
-  };
-
+  
   /* ── not found ── */
   if (notFound) return (
     <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:14,padding:20,background:'#0a0a0a',color:'#e0e0ff'}}>
