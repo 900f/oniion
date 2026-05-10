@@ -85,7 +85,7 @@ export default function Home() {
 
       {/* Nav */}
       <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, padding: '0 32px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.04)', background: 'rgba(6,6,8,0.8)', backdropFilter: 'blur(16px)' }}>
-        <span style={{ fontFamily: "'Inter', serif", fontSize: 20, letterSpacing: '-0.3px' }}>
+        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, letterSpacing: '-0.3px' }}>
           <span style={{ color: '#a855f7' }}>oni</span>ion.cc
         </span>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -100,7 +100,7 @@ export default function Home() {
           <IconSparkles size={12} /> your bio, your way
         </div>
 
-        <h1 style={{ fontFamily: "'Inter', serif", fontSize: 'clamp(52px, 10vw, 104px)', lineHeight: 0.95, letterSpacing: '-3px', marginBottom: 28, color: '#f5f0ff', maxWidth: 700 }}>
+        <h1 style={{ fontFamily: "'Space Grotesk', sand-serif", fontSize: 'clamp(52px, 10vw, 104px)', lineHeight: 0.95, letterSpacing: '-3px', marginBottom: 28, color: '#f5f0ff', maxWidth: 700 }}>
           One link.<br />
           <span style={{ color: '#c084fc', fontStyle: 'italic' }}>Infinite you.</span>
         </h1>
