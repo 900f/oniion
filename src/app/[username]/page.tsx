@@ -182,7 +182,7 @@ export default function ProfilePage() {
     else if(ef==='dot'){el=document.createElement('div');el.id='_cur';el.style.cssText=`position:fixed;pointer-events:none;z-index:9999;width:8px;height:8px;border-radius:50%;background:${ac};transition:left .03s,top .03s;`;document.body.appendChild(el);}
     else if(ef==='crosshair'){el=document.createElement('div');el.id='_cur';el.style.cssText=`position:fixed;pointer-events:none;z-index:9999;width:24px;height:24px;transition:left .03s,top .03s;`;el.innerHTML=`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${ac}" stroke-width="1.5"><line x1="12" y1="0" x2="12" y2="24"/><line x1="0" y1="12" x2="24" y2="12"/><circle cx="12" cy="12" r="4"/></svg>`;document.body.appendChild(el);}
     window.addEventListener('mousemove',onMove);
-    return()=>{window.removeEventListener('mousemove',onMove);document.getElementById('_cur')?.remove();// cursor restored (was already visible)};
+    return()=>{window.removeEventListener('mousemove',onMove);document.getElementById('_cur')?.remove();};
   }, [data]);
 
   /* audio */
