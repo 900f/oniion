@@ -81,8 +81,6 @@ export default function ProfilePage() {
     });
   }, [username]);
 
-
-
   /* 3D tilt */
   const onMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const card = cardRef.current; if (!card) return;
@@ -187,7 +185,6 @@ export default function ProfilePage() {
     return()=>{window.removeEventListener('mousemove',onMove);document.getElementById('_cur')?.remove();};
   }, [data]);
 
-
   /* audio */
   const toggleAudio = () => {
     const a=audioRef.current; if(!a)return;
@@ -196,41 +193,11 @@ export default function ProfilePage() {
   };
   const vid = data?.profile?.song_url ? ytId(data.profile.song_url) : null;
   const isYT = !!vid;
-  const hasSong = !!(data?.profile?.song_url?.trim());
   const toggleYT = () => {
     const f=document.getElementById('yt-pl') as HTMLIFrameElement|null;
     f?.contentWindow?.postMessage(JSON.stringify({event:'command',func:playing?'pauseVideo':'playVideo',args:[]}),'*');
     setPlaying(v=>!v);
   };
-
-  useEffect(() => {
-    if (!hasSong || isYT || !audioRef.current) return;
-    
-    const audio = audioRef.current;
-    
-    const enableAudio = () => {
-      audio.muted = false;
-      audio.play().then(() => {
-        setPlaying(true);
-        document.removeEventListener('click', enableAudio);
-        document.removeEventListener('touchstart', enableAudio);
-        document.removeEventListener('keydown', enableAudio);
-      }).catch(e => console.log('Play failed:', e));
-    };
-    
-    audio.play().catch(() => console.log('Autoplay waiting for interaction'));
-    
-    document.addEventListener('click', enableAudio);
-    document.addEventListener('touchstart', enableAudio);
-    document.addEventListener('keydown', enableAudio);
-    
-    return () => {
-      document.removeEventListener('click', enableAudio);
-      document.removeEventListener('touchstart', enableAudio);
-      document.removeEventListener('keydown', enableAudio);
-    };
-  }, [hasSong, isYT]);
-
 
   /* ── not found ── */
   if (notFound) return (
@@ -266,6 +233,7 @@ export default function ProfilePage() {
   const nf = NAME_FONT[p.name_font || 'orbitron'] || NAME_FONT.orbitron;
   const isCustomFont = p.font_family==='__custom__' && p.custom_font_url;
   const bodyFont = isCustomFont ? '__custom__' : (p.font_family || 'Space Grotesk');
+  const hasSong = !!(p.song_url?.trim());
 
   const bgStyle = (): React.CSSProperties => {
     if (p.background_type==='color') return {background:p.background_value||'#0a0a0a'};
@@ -327,10 +295,10 @@ export default function ProfilePage() {
       {/* yt iframe */}
       {isYT && (
         <div style={{position:'fixed',width:1,height:1,overflow:'hidden',opacity:0,zIndex:-1}}>
-          <iframe id="yt-pl" src={`https://www.youtube.com/embed/${vid}?enablejsapi=1&autoplay=1&controls=0&mute=1`} allow="autoplay" title="audio" style={{width:1, height:1}}/>
+          <iframe id="yt-pl" src={`https://www.youtube.com/embed/${vid}?enablejsapi=1&autoplay=1&controls=0`} allow="autoplay" title="audio" style={{width:1,height:1}}/>
         </div>
       )}
-      {!isYT && hasSong && <audio ref={audioRef} src={p.song_url} loop autoPlay preload="auto" muted/>}
+      {!isYT && hasSong && <audio ref={audioRef} src={p.song_url} loop preload="none"/>}
 
       {/* page */}
       <div style={{minHeight:'100vh',fontFamily:`'${bodyFont}','Space Grotesk',sans-serif`,color:tx,position:'relative',overflowX:'hidden',display:'flex',alignItems:isMiddle?'center':'flex-start',justifyContent:'center',padding:isMiddle?'20px 16px':'60px 16px 80px',...bgStyle()}}>
