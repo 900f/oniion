@@ -295,7 +295,7 @@ export default function ProfilePage() {
       {/* yt iframe */}
       {isYT && (
         <div style={{position:'fixed',width:1,height:1,overflow:'hidden',opacity:0,zIndex:-1}}>
-          <iframe id="yt-pl" src={`https://www.youtube.com/embed/${vid}?enablejsapi=1&autoplay=0&controls=0`} allow="autoplay" title="audio" style={{width:1,height:1}}/>
+          <iframe id="yt-pl" src={`https://www.youtube.com/embed/${vid}?enablejsapi=1&autoplay=1&controls=0`} allow="autoplay" title="audio" style={{width:1,height:1}}/>
         </div>
       )}
       {!isYT && hasSong && <audio ref={audioRef} src={p.song_url} loop preload="none"/>}
