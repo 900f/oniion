@@ -8,7 +8,7 @@ export default function Home() {
 
   useEffect(() => {
     // Track visitor
-    fetch('/api/heatbeat', {
+    fetch('/api/heartbeat', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
