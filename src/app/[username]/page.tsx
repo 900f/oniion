@@ -266,7 +266,6 @@ export default function ProfilePage() {
   const nf = NAME_FONT[p.name_font || 'orbitron'] || NAME_FONT.orbitron;
   const isCustomFont = p.font_family==='__custom__' && p.custom_font_url;
   const bodyFont = isCustomFont ? '__custom__' : (p.font_family || 'Space Grotesk');
-  const hasSong = !!(p.song_url?.trim());
 
   const bgStyle = (): React.CSSProperties => {
     if (p.background_type==='color') return {background:p.background_value||'#0a0a0a'};
