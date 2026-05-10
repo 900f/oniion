@@ -81,6 +81,8 @@ export default function ProfilePage() {
     });
   }, [username]);
 
+
+
   /* 3D tilt */
   const onMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const card = cardRef.current; if (!card) return;
@@ -184,6 +186,40 @@ export default function ProfilePage() {
     window.addEventListener('mousemove',onMove);
     return()=>{window.removeEventListener('mousemove',onMove);document.getElementById('_cur')?.remove();};
   }, [data]);
+
+
+    /* autoplay unlock - remove mute after user interaction */
+  useEffect(() => {
+    if (!hasSong || isYT || !audioRef.current) return;
+    
+    const audio = audioRef.current;
+    
+    // Unmute and play on first user interaction
+    const enableAudio = () => {
+      audio.muted = false;
+      audio.play().then(() => {
+        setPlaying(true);
+        // Remove listeners after success
+        document.removeEventListener('click', enableAudio);
+        document.removeEventListener('touchstart', enableAudio);
+        document.removeEventListener('keydown', enableAudio);
+      }).catch(e => console.log('Play failed:', e));
+    };
+    
+    // Try to play immediately (will be muted but playing)
+    audio.play().catch(() => console.log('Autoplay waiting for interaction'));
+    
+    // Listen for user interaction to unmute
+    document.addEventListener('click', enableAudio);
+    document.addEventListener('touchstart', enableAudio);
+    document.addEventListener('keydown', enableAudio);
+    
+    return () => {
+      document.removeEventListener('click', enableAudio);
+      document.removeEventListener('touchstart', enableAudio);
+      document.removeEventListener('keydown', enableAudio);
+    };
+  }, [hasSong, isYT]);
 
   /* audio */
   const toggleAudio = () => {
@@ -295,10 +331,10 @@ export default function ProfilePage() {
       {/* yt iframe */}
       {isYT && (
         <div style={{position:'fixed',width:1,height:1,overflow:'hidden',opacity:0,zIndex:-1}}>
-          <iframe id="yt-pl" src={`https://www.youtube.com/embed/${vid}?enablejsapi=1&autoplay=1&controls=0`} allow="autoplay" title="audio" style={{width:1,height:1}}/>
+          <iframe id="yt-pl" src={`https://www.youtube.com/embed/${vid}?enablejsapi=1&autoplay=1&controls=0&mute=1`} allow="autoplay" title="audio" style={{width:1, height:1}}/>
         </div>
       )}
-      {!isYT && hasSong && <audio ref={audioRef} src={p.song_url} loop preload="none"/>}
+      {!isYT && hasSong && <audio ref={audioRef} src={p.song_url} loop autoPlay preload="auto" muted/>}
 
       {/* page */}
       <div style={{minHeight:'100vh',fontFamily:`'${bodyFont}','Space Grotesk',sans-serif`,color:tx,position:'relative',overflowX:'hidden',display:'flex',alignItems:isMiddle?'center':'flex-start',justifyContent:'center',padding:isMiddle?'20px 16px':'60px 16px 80px',...bgStyle()}}>
