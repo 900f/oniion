@@ -3,9 +3,9 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    const allowedPaths = ['/', '/dashboard'];
 
-    // Only allow tracking homepage visits
-    if (body.path !== '/') {
+    if (!allowedPaths.includes(body.path)) {
       return NextResponse.json({ ignored: true });
     }
 
