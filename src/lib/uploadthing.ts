@@ -4,7 +4,7 @@ import { getSession } from "@/lib/auth";
 
 const f = createUploadthing();
 
-const authMiddleware = async () => {
+const auth = async () => {
   const session = await getSession();
   if (!session) throw new UploadThingError("Unauthorized");
   return { userId: session.userId };
@@ -12,7 +12,7 @@ const authMiddleware = async () => {
 
 export const ourFileRouter = {
   fontUploader: f({ blob: { maxFileSize: "4MB", maxFileCount: 1 } })
-    .middleware(authMiddleware)
+    .middleware(auth)
     .onUploadComplete(async ({ metadata, file }) => ({
       uploadedBy: metadata.userId, url: file.ufsUrl, name: file.name,
     })),
@@ -21,7 +21,15 @@ export const ourFileRouter = {
     image: { maxFileSize: "8MB", maxFileCount: 1 },
     "image/gif": { maxFileSize: "8MB", maxFileCount: 1 },
   })
-    .middleware(authMiddleware)
+    .middleware(auth)
+    .onUploadComplete(async ({ metadata, file }) => ({
+      uploadedBy: metadata.userId, url: file.ufsUrl, name: file.name,
+    })),
+
+  audioUploader: f({
+    audio: { maxFileSize: "10MB", maxFileCount: 1 },
+  })
+    .middleware(auth)
     .onUploadComplete(async ({ metadata, file }) => ({
       uploadedBy: metadata.userId, url: file.ufsUrl, name: file.name,
     })),

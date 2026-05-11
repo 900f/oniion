@@ -16,46 +16,9 @@ export default new Proxy({} as NeonQueryFunction<false, false>, {
     return (getDb() as unknown as (...a: unknown[]) => unknown)(...args);
   },
   get(_t: unknown, prop: string | symbol) {
-    const db = getDb() as unknown as Record<string | symbol, unknown>;
-    return db[prop];
+    return (getDb() as unknown as Record<string | symbol, unknown>)[prop];
   },
 }) as NeonQueryFunction<false, false>;
-
-// Run each migration as a tagged template so TypeScript is happy
-export async function runMigrations() {
-  const db = getDb();
-  const cols = [
-    [`custom_font_url`, `TEXT`],
-    [`custom_font_name`, `VARCHAR(128)`],
-    [`background_image_url`, `TEXT`],
-    [`card_image_url`, `TEXT`],
-    [`card_position`, `VARCHAR(20) DEFAULT 'top'`],
-    [`avatar_orbit`, `BOOLEAN DEFAULT true`],
-    [`card_led_border`, `BOOLEAN DEFAULT true`],
-    [`card_tilt`, `BOOLEAN DEFAULT true`],
-    [`show_views`, `BOOLEAN DEFAULT true`],
-    [`show_id`, `BOOLEAN DEFAULT true`],
-    [`show_music`, `BOOLEAN DEFAULT true`],
-    [`name_font`, `VARCHAR(32) DEFAULT 'orbitron'`],
-  ];
-  for (const [col, type] of cols) {
-    try {
-      await db`SELECT ${db`${col}`} FROM profiles LIMIT 0`;
-    } catch {
-      // Column doesn't exist — add it. We build the SQL string and pass via template.
-      try {
-        const stmt = `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS ${col} ${type}`;
-        await db([stmt] as unknown as TemplateStringsArray);
-      } catch { /* ignore */ }
-    }
-  }
-  // links table
-  try { await db([`ALTER TABLE links ADD COLUMN IF NOT EXISTS link_type VARCHAR(20) DEFAULT 'url'`] as unknown as TemplateStringsArray); } catch { /* ok */ }
-  // users table
-  try { await db([`ALTER TABLE users ADD COLUMN IF NOT EXISTS display_id INTEGER`] as unknown as TemplateStringsArray); } catch { /* ok */ }
-  // view_counts table
-  try { await db([`ALTER TABLE view_counts ADD COLUMN IF NOT EXISTS daily_hashes JSONB DEFAULT '{}'`] as unknown as TemplateStringsArray); } catch { /* ok */ }
-}
 
 export async function initDB() {
   const db = getDb();
@@ -66,6 +29,7 @@ export async function initDB() {
     password_hash TEXT NOT NULL,
     email VARCHAR(255) UNIQUE,
     display_id SERIAL,
+    verified BOOLEAN DEFAULT false,
     created_at TIMESTAMPTZ DEFAULT NOW()
   )`;
 
@@ -95,6 +59,10 @@ export async function initDB() {
     show_id BOOLEAN DEFAULT true,
     show_music BOOLEAN DEFAULT true,
     name_font VARCHAR(32) DEFAULT 'orbitron',
+    show_verified_badge BOOLEAN DEFAULT true,
+    glass_opacity REAL DEFAULT 0.72,
+    glass_tint TEXT DEFAULT 'auto',
+    cursor_trail_style VARCHAR(32) DEFAULT 'dot',
     updated_at TIMESTAMPTZ DEFAULT NOW()
   )`;
 
@@ -115,12 +83,46 @@ export async function initDB() {
   )`;
 
   await db`CREATE INDEX IF NOT EXISTS idx_links_user_id ON links(user_id)`;
-  await runMigrations();
 
-  try {
-    await db`UPDATE users SET display_id = sub.rn
-      FROM (SELECT id, ROW_NUMBER() OVER (ORDER BY created_at) AS rn
-            FROM users WHERE display_id IS NULL) sub
-      WHERE users.id = sub.id`;
-  } catch { /* ok */ }
+  // ADD COLUMNS — each in its own try/catch so one failure doesn't block the rest
+  const addCols = [
+    db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS custom_font_url TEXT`.catch(()=>{}),
+    db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS custom_font_name VARCHAR(128)`.catch(()=>{}),
+    db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS background_image_url TEXT`.catch(()=>{}),
+    db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS card_image_url TEXT`.catch(()=>{}),
+    db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS card_position VARCHAR(20) DEFAULT 'top'`.catch(()=>{}),
+    db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_orbit BOOLEAN DEFAULT true`.catch(()=>{}),
+    db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS card_led_border BOOLEAN DEFAULT true`.catch(()=>{}),
+    db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS card_tilt BOOLEAN DEFAULT true`.catch(()=>{}),
+    db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS show_views BOOLEAN DEFAULT true`.catch(()=>{}),
+    db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS show_id BOOLEAN DEFAULT true`.catch(()=>{}),
+    db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS show_music BOOLEAN DEFAULT true`.catch(()=>{}),
+    db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS name_font VARCHAR(32) DEFAULT 'orbitron'`.catch(()=>{}),
+    db`ALTER TABLE links ADD COLUMN IF NOT EXISTS link_type VARCHAR(20) DEFAULT 'url'`.catch(()=>{}),
+    db`ALTER TABLE users ADD COLUMN IF NOT EXISTS display_id INTEGER`.catch(()=>{}),
+    db`ALTER TABLE view_counts ADD COLUMN IF NOT EXISTS daily_hashes JSONB DEFAULT '{}'`.catch(()=>{}),
+    db`ALTER TABLE users ADD COLUMN IF NOT EXISTS verified BOOLEAN DEFAULT false`.catch(()=>{}),
+    db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS glass_opacity REAL DEFAULT 0.72`.catch(()=>{}),
+    db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS show_verified_badge BOOLEAN DEFAULT true`.catch(()=>{}),
+    db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS glass_tint TEXT DEFAULT 'auto'`.catch(()=>{}),
+    db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS cursor_trail_style VARCHAR(32) DEFAULT 'dot'`.catch(()=>{}),
+  ];
+  await Promise.all(addCols);
+
+  // Backfill nulls for existing rows
+  const backfills = [
+    db`UPDATE profiles SET avatar_orbit=true WHERE avatar_orbit IS NULL`.catch(()=>{}),
+    db`UPDATE profiles SET card_led_border=true WHERE card_led_border IS NULL`.catch(()=>{}),
+    db`UPDATE profiles SET card_tilt=true WHERE card_tilt IS NULL`.catch(()=>{}),
+    db`UPDATE profiles SET show_views=true WHERE show_views IS NULL`.catch(()=>{}),
+    db`UPDATE profiles SET show_id=true WHERE show_id IS NULL`.catch(()=>{}),
+    db`UPDATE profiles SET show_music=true WHERE show_music IS NULL`.catch(()=>{}),
+    db`UPDATE profiles SET name_font='orbitron' WHERE name_font IS NULL`.catch(()=>{}),
+    db`UPDATE profiles SET layout='center' WHERE layout IS NULL`.catch(()=>{}),
+    db`UPDATE profiles SET card_style='glass' WHERE card_style IS NULL`.catch(()=>{}),
+    db`UPDATE profiles SET font_family='Space Grotesk' WHERE font_family IS NULL`.catch(()=>{}),
+    db`UPDATE profiles SET card_position='top' WHERE card_position IS NULL`.catch(()=>{}),
+    db`UPDATE users SET display_id = sub.rn FROM (SELECT id, ROW_NUMBER() OVER (ORDER BY created_at) AS rn FROM users WHERE display_id IS NULL) sub WHERE users.id = sub.id`.catch(()=>{}),
+  ];
+  await Promise.all(backfills);
 }

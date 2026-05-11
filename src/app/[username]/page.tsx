@@ -4,25 +4,30 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { SocialIcons, detectSocialIcon } from '@/components/social-icons';
+import { CryptoIcons, CRYPTO_META } from '@/components/crypto-icons';
 
-/* ── helpers ── */
-const CRYPTO_SYM: Record<string,string> = { eth:'Ξ',btc:'₿',sol:'◎',usdt:'₮',bnb:'⬡',xrp:'✕',ltc:'Ł',doge:'Ð',ada:'₳',avax:'△',matic:'⬡',trx:'◆' };
-const CRYPTO_NAME: Record<string,string> = { eth:'Ethereum',btc:'Bitcoin',sol:'Solana',usdt:'Tether',bnb:'BNB',xrp:'XRP',ltc:'Litecoin',doge:'Dogecoin',ada:'Cardano',avax:'Avalanche',matic:'Polygon',trx:'TRON' };
-const NAME_FONT: Record<string,string> = { orbitron:"'Orbitron',sans-serif", 'space-grotesk':"'Space Grotesk',sans-serif", playfair:"'Playfair Display',serif", bebas:"'Bebas Neue',sans-serif", cinzel:"'Cinzel',serif", custom:'inherit' };
+const NAME_FONT: Record<string,string> = {
+  orbitron:"'Orbitron',sans-serif",
+  'space-grotesk':"'Space Grotesk',sans-serif",
+  playfair:"'Playfair Display',serif",
+  bebas:"'Bebas Neue',sans-serif",
+  cinzel:"'Cinzel',serif",
+  custom:'inherit',
+};
 
-function url(s: string) {
+function fixUrl(s: string) {
   if (!s) return s;
   if (/^(https?:|mailto:)/.test(s)) return s;
   return 'https://' + s;
 }
-function ytId(u: string) {
+function getYtId(u: string) {
   return u.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/)?.[1] ?? null;
 }
-function rgb(hex: string) {
-  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
-  return isNaN(r)?'168,85,247':`${r},${g},${b}`;
+function hexRgb(hex: string) {
+  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  return isNaN(r) ? '168,85,247' : `${r},${g},${b}`;
 }
-function bool(v: unknown, def=true): boolean {
+function asBool(v: unknown, def: boolean): boolean {
   if (v === null || v === undefined) return def;
   return Boolean(v);
 }
@@ -37,23 +42,45 @@ type P = {
   layout:string; card_position:string;
   blur_enabled:unknown; glow_enabled:unknown;
   badge_text:string; badge_color:string;
-  cursor_effect:string; card_style:string;
+  cursor_effect:string; cursor_trail_style:string; card_style:string;
   custom_font_url:string; custom_font_name:string;
   avatar_orbit:unknown; card_led_border:unknown; card_tilt:unknown;
   show_views:unknown; show_id:unknown; show_music:unknown;
-  name_font:string;
+  name_font:string; glass_opacity:number; glass_tint:string; show_verified_badge:unknown;
 };
 type Data = {
-  username:string; userId:string; views:number; displayId:number;
-  profile:P;
-  links:{ id:string; title:string; url:string; icon:string; link_type:string }[];
+  username:string; userId:string; views:number; displayId:number; verified:boolean;
+  profile: P;
+  links: { id:string; title:string; url:string; icon:string; link_type:string }[];
 };
 
-function CopyBtn({ addr, accent, text }: { addr:string; accent:string; text:string }) {
+function CryptoCopyBtn({ coin, address, accent }: { coin:string; address:string; accent:string }) {
   const [ok, setOk] = useState(false);
+  const meta = CRYPTO_META[coin] || { name: coin.toUpperCase(), color: accent };
+  const Icon = CryptoIcons[coin];
+  const copy = () => {
+    navigator.clipboard.writeText(address).then(() => {
+      setOk(true); setTimeout(() => setOk(false), 2000);
+    });
+  };
   return (
-    <button onClick={()=>{ navigator.clipboard.writeText(addr).then(()=>{ setOk(true); setTimeout(()=>setOk(false),2000); }); }} style={{ background:ok?`${accent}22`:`${accent}0e`, border:`1px solid ${accent}${ok?'55':'22'}`, borderRadius:8, padding:'5px 11px', cursor:'pointer', display:'flex', alignItems:'center', gap:5, color:ok?accent:`${text}77`, fontSize:11, fontFamily:"'Space Mono',monospace", transition:'all .2s', flexShrink:0 }}>
-      {ok ? '✓ Copied' : 'Copy'}
+    <button
+      onClick={copy}
+      title={ok ? 'Copied!' : `Copy ${meta.name} address`}
+      style={{
+        width: 40, height: 40, borderRadius: '50%',
+        background: ok ? `${meta.color}33` : `${meta.color}14`,
+        border: `2px solid ${ok ? meta.color : meta.color + '44'}`,
+        cursor: 'pointer', display: 'flex', alignItems: 'center',
+        justifyContent: 'center', transition: 'all .2s',
+        boxShadow: ok ? `0 0 12px ${meta.color}66` : 'none',
+        flexShrink: 0,
+      }}
+    >
+      {ok
+        ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={meta.color} strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        : Icon ? <Icon size={22}/> : <span style={{fontSize:14,color:meta.color}}>₿</span>
+      }
     </button>
   );
 }
@@ -68,7 +95,7 @@ export default function ProfilePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
-  /* load profile */
+  // Load profile then auto-attempt autoplay
   useEffect(() => {
     fetch(`/api/profile/${username}`).then(r => {
       if (r.status === 404) { setNotFound(true); return null; }
@@ -77,24 +104,52 @@ export default function ProfilePage() {
       if (!d) return;
       setData(d); setViews(Number(d.views));
       fetch('/api/views', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:d.userId}) })
-        .then(r=>r.json()).then(v=>{ if (v.views != null) setViews(Number(v.views)); });
+        .then(r => r.json()).then(v => { if (v.views != null) setViews(Number(v.views)); });
     });
   }, [username]);
 
-  /* 3D tilt */
+  // Autoplay audio once data loads
+  useEffect(() => {
+    if (!data) return;
+    const p = data.profile;
+    if (!p.song_url?.trim()) return;
+    const vid = getYtId(p.song_url);
+    if (vid) {
+      // YT autoplay via postMessage after iframe loads
+      const tryPlay = () => {
+        const f = document.getElementById('yt-pl') as HTMLIFrameElement|null;
+        if (f?.contentWindow) {
+          f.contentWindow.postMessage(JSON.stringify({event:'command',func:'playVideo',args:[]}),'*');
+          setPlaying(true);
+        } else {
+          setTimeout(tryPlay, 800);
+        }
+      };
+      setTimeout(tryPlay, 1200);
+    } else {
+      // Direct audio — attempt autoplay (browsers may block without interaction)
+      const a = audioRef.current;
+      if (a) {
+        a.play().then(() => setPlaying(true)).catch(() => {
+          // Autoplay blocked — user must click play
+        });
+      }
+    }
+  }, [data]);
+
+  // 3D tilt
   const onMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const card = cardRef.current; if (!card) return;
     const r = card.getBoundingClientRect();
-    const x = e.clientX - r.left, y = e.clientY - r.top;
-    const rx = ((y - r.height/2) / (r.height/2)) * -7;
-    const ry = ((x - r.width/2)  / (r.width/2))  *  7;
+    const rx = ((e.clientY - r.top  - r.height/2) / (r.height/2)) * -7;
+    const ry = ((e.clientX - r.left - r.width/2)  / (r.width/2))  *  7;
     card.style.transform = `perspective(900px) rotateX(${rx}deg) rotateY(${ry}deg) scale(1.015)`;
   }, []);
   const onMouseLeave = useCallback(() => {
     if (cardRef.current) cardRef.current.style.transform = 'perspective(900px) rotateX(0deg) rotateY(0deg) scale(1)';
   }, []);
 
-  /* particle canvas */
+  // Particle canvas
   useEffect(() => {
     if (!data) return;
     const p = data.profile;
@@ -107,7 +162,7 @@ export default function ProfilePage() {
     const pts = Array.from({length:60}, () => ({
       x:Math.random()*cv.width, y:Math.random()*cv.height,
       vx:(Math.random()-.5)*.3, vy:(Math.random()-.5)*.3,
-      sz:Math.random()*1.4+.3, a:Math.random()*.3+.05
+      sz:Math.random()*1.4+.3, a:Math.random()*.3+.05,
     }));
     let id: number;
     const draw = () => {
@@ -117,22 +172,22 @@ export default function ProfilePage() {
         if(pt.x<0)pt.x=cv.width; if(pt.x>cv.width)pt.x=0;
         if(pt.y<0)pt.y=cv.height; if(pt.y>cv.height)pt.y=0;
         ctx.beginPath(); ctx.arc(pt.x,pt.y,pt.sz,0,Math.PI*2);
-        ctx.fillStyle=`rgba(${rgb(ac)},${pt.a})`; ctx.fill();
+        ctx.fillStyle=`rgba(${hexRgb(ac)},${pt.a})`; ctx.fill();
       });
       for(let i=0;i<pts.length;i++) for(let j=i+1;j<pts.length;j++){
         const dx=pts[i].x-pts[j].x, dy=pts[i].y-pts[j].y, d=Math.sqrt(dx*dx+dy*dy);
-        if(d<110){ ctx.beginPath(); ctx.strokeStyle=`rgba(${rgb(ac)},${.06*(1-d/110)})`; ctx.lineWidth=.5; ctx.moveTo(pts[i].x,pts[i].y); ctx.lineTo(pts[j].x,pts[j].y); ctx.stroke(); }
+        if(d<110){ ctx.beginPath(); ctx.strokeStyle=`rgba(${hexRgb(ac)},${.06*(1-d/110)})`; ctx.lineWidth=.5; ctx.moveTo(pts[i].x,pts[i].y); ctx.lineTo(pts[j].x,pts[j].y); ctx.stroke(); }
       }
-      id=requestAnimationFrame(draw);
+      id = requestAnimationFrame(draw);
     };
-    draw(); window.addEventListener('resize',resize);
-    return () => { cancelAnimationFrame(id); window.removeEventListener('resize',resize); };
+    draw(); window.addEventListener('resize', resize);
+    return () => { cancelAnimationFrame(id); window.removeEventListener('resize', resize); };
   }, [data]);
 
-  /* DOM effects */
+  // DOM particle effects
   useEffect(() => {
     if (!data?.profile?.page_effect || ['none','particles'].includes(data.profile.page_effect)) return;
-    const ef = data.profile.page_effect, col = data.profile.effect_color||'#a855f7';
+    const ef = data.profile.page_effect, col = data.profile.effect_color || '#a855f7';
     const box = document.getElementById('fx'); if (!box) return;
     const spawn = () => {
       const el = document.createElement('div');
@@ -145,61 +200,93 @@ export default function ProfilePage() {
       else if (ef==='matrix'){el.textContent=String.fromCharCode(0x30A0+Math.random()*96);el.style.cssText=`position:fixed;pointer-events:none;z-index:1;left:${x}px;top:-20px;font-family:'Space Mono',monospace;color:${col};font-size:13px;opacity:.65;animation:rain ${1+Math.random()*2}s ${delay}s linear infinite;`;}
       box.appendChild(el); setTimeout(()=>el.remove(),(dur+delay)*1000+500);
     };
-    const count=(ef==='rain'||ef==='matrix')?70:35;
-    for(let i=0;i<count;i++) setTimeout(spawn,i*120);
-    const iv=setInterval(spawn,(ef==='rain'||ef==='matrix')?130:340);
-    return()=>{clearInterval(iv);if(box)box.innerHTML='';};
+    const count = (ef==='rain'||ef==='matrix') ? 70 : 35;
+    for(let i=0;i<count;i++) setTimeout(spawn, i*120);
+    const iv = setInterval(spawn, (ef==='rain'||ef==='matrix') ? 130 : 340);
+    return () => { clearInterval(iv); if(box) box.innerHTML=''; };
   }, [data]);
 
-  /* cursor effects — cursor stays visible unless effect selected */
+  // Cursor effects — never hide native cursor
   useEffect(() => {
     if (!data?.profile?.cursor_effect || data.profile.cursor_effect==='none') return;
-    const ef = data.profile.cursor_effect, ac = data.profile.accent_color||'#a855f7';
-    // Only hide cursor for custom cursor effects
-    // cursor always visible
+    const ef = data.profile.cursor_effect;
+    const ac = data.profile.accent_color || '#a855f7';
+    const trail = data.profile.cursor_trail_style || 'dot';
+
+    // Trail shape factory
+    const makeTrail = (x: number, y: number) => {
+      const d = document.createElement('div');
+      let css = `position:fixed;pointer-events:none;z-index:9999;left:${x}px;top:${y}px;`;
+      if (trail === 'dot') {
+        css += `width:7px;height:7px;border-radius:50%;background:${ac};transform:translate(-50%,-50%);opacity:.9;transition:opacity .5s,transform .5s;`;
+      } else if (trail === 'star') {
+        css += `width:10px;height:10px;transform:translate(-50%,-50%) rotate(45deg);background:${ac};opacity:.85;transition:opacity .5s,transform .5s;clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);`;
+      } else if (trail === 'ring') {
+        css += `width:12px;height:12px;border-radius:50%;border:2px solid ${ac};transform:translate(-50%,-50%);opacity:.8;transition:opacity .5s,transform .5s;`;
+      } else if (trail === 'spark') {
+        const size = 4+Math.random()*8;
+        css += `width:${size}px;height:${size}px;border-radius:50%;background:radial-gradient(circle,#fff,${ac});transform:translate(-50%,-50%);opacity:1;transition:opacity .6s,transform .6s;`;
+      } else if (trail === 'comet') {
+        css += `width:3px;height:12px;background:linear-gradient(${ac},transparent);border-radius:2px;transform:translate(-50%,-50%) rotate(-45deg);opacity:.9;transition:opacity .4s;`;
+      }
+      document.body.appendChild(d);
+      d.style.cssText = css;
+      requestAnimationFrame(() => { d.style.opacity='0'; d.style.transform=`translate(-50%,-50%) scale(${trail==='spark'?2.5:1.8})`; });
+      setTimeout(() => d.remove(), 600);
+    };
 
     const onMove = (e: MouseEvent) => {
-      if (ef==='trail') {
-        const d=document.createElement('div');
-        d.style.cssText=`position:fixed;pointer-events:none;z-index:9999;width:6px;height:6px;border-radius:50%;background:${ac};left:${e.clientX-3}px;top:${e.clientY-3}px;opacity:.9;transition:opacity .45s,transform .45s;`;
-        document.body.appendChild(d);
-        requestAnimationFrame(()=>{d.style.opacity='0';d.style.transform='scale(2.5)';});
-        setTimeout(()=>d.remove(),480);
-      } else if (ef==='bubble') {
-        if(Math.random()>.3) return;
-        const b=document.createElement('div'),s=7+Math.random()*14;
+      if (ef === 'trail') {
+        makeTrail(e.clientX, e.clientY);
+      } else if (ef === 'bubble') {
+        if (Math.random() > .3) return;
+        const b = document.createElement('div'), s = 7+Math.random()*14;
         b.style.cssText=`position:fixed;pointer-events:none;z-index:9999;width:${s}px;height:${s}px;border-radius:50%;border:1px solid ${ac}99;left:${e.clientX-s/2}px;top:${e.clientY-s/2}px;opacity:.8;transition:all .65s;`;
         document.body.appendChild(b);
         requestAnimationFrame(()=>{b.style.opacity='0';b.style.transform=`translateY(-${10+Math.random()*22}px) scale(.4)`;});
         setTimeout(()=>b.remove(),680);
       } else {
-        const c=document.getElementById('_cur');
-        if(c){const off=ef==='ring'?16:ef==='crosshair'?12:4;c.style.left=(e.clientX-off)+'px';c.style.top=(e.clientY-off)+'px';}
+        const c = document.getElementById('_cur');
+        if(c){ const off=ef==='ring'?16:ef==='crosshair'?12:4; c.style.left=(e.clientX-off)+'px'; c.style.top=(e.clientY-off)+'px'; }
       }
     };
-    let el:HTMLDivElement|null=null;
-    if(ef==='ring'){el=document.createElement('div');el.id='_cur';el.style.cssText=`position:fixed;pointer-events:none;z-index:9999;width:32px;height:32px;border-radius:50%;border:1.5px solid ${ac};transition:left .06s,top .06s;`;document.body.appendChild(el);}
-    else if(ef==='dot'){el=document.createElement('div');el.id='_cur';el.style.cssText=`position:fixed;pointer-events:none;z-index:9999;width:8px;height:8px;border-radius:50%;background:${ac};transition:left .03s,top .03s;`;document.body.appendChild(el);}
-    else if(ef==='crosshair'){el=document.createElement('div');el.id='_cur';el.style.cssText=`position:fixed;pointer-events:none;z-index:9999;width:24px;height:24px;transition:left .03s,top .03s;`;el.innerHTML=`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${ac}" stroke-width="1.5"><line x1="12" y1="0" x2="12" y2="24"/><line x1="0" y1="12" x2="24" y2="12"/><circle cx="12" cy="12" r="4"/></svg>`;document.body.appendChild(el);}
-    window.addEventListener('mousemove',onMove);
-    return()=>{window.removeEventListener('mousemove',onMove);document.getElementById('_cur')?.remove();};
+
+    let el: HTMLDivElement|null = null;
+    if(ef==='ring'){
+      el=document.createElement('div'); el.id='_cur';
+      el.style.cssText=`position:fixed;pointer-events:none;z-index:9999;width:32px;height:32px;border-radius:50%;border:1.5px solid ${ac};transition:left .06s,top .06s;`;
+      document.body.appendChild(el);
+    } else if(ef==='dot'){
+      el=document.createElement('div'); el.id='_cur';
+      el.style.cssText=`position:fixed;pointer-events:none;z-index:9999;width:8px;height:8px;border-radius:50%;background:${ac};transition:left .03s,top .03s;`;
+      document.body.appendChild(el);
+    } else if(ef==='crosshair'){
+      el=document.createElement('div'); el.id='_cur';
+      el.style.cssText=`position:fixed;pointer-events:none;z-index:9999;width:24px;height:24px;transition:left .03s,top .03s;`;
+      el.innerHTML=`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${ac}" stroke-width="1.5"><line x1="12" y1="0" x2="12" y2="24"/><line x1="0" y1="12" x2="24" y2="12"/><circle cx="12" cy="12" r="4"/></svg>`;
+      document.body.appendChild(el);
+    }
+
+    window.addEventListener('mousemove', onMove);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      document.getElementById('_cur')?.remove();
+    };
   }, [data]);
 
-  /* audio */
   const toggleAudio = () => {
-    const a=audioRef.current; if(!a)return;
-    if(playing){a.pause();setPlaying(false);}
-    else a.play().then(()=>setPlaying(true)).catch(()=>{});
+    const a = audioRef.current; if (!a) return;
+    if (playing) { a.pause(); setPlaying(false); }
+    else a.play().then(() => setPlaying(true)).catch(() => {});
   };
-  const vid = data?.profile?.song_url ? ytId(data.profile.song_url) : null;
+  const vid = data?.profile?.song_url ? getYtId(data.profile.song_url) : null;
   const isYT = !!vid;
   const toggleYT = () => {
-    const f=document.getElementById('yt-pl') as HTMLIFrameElement|null;
+    const f = document.getElementById('yt-pl') as HTMLIFrameElement|null;
     f?.contentWindow?.postMessage(JSON.stringify({event:'command',func:playing?'pauseVideo':'playVideo',args:[]}),'*');
-    setPlaying(v=>!v);
+    setPlaying(v => !v);
   };
 
-  /* ── not found ── */
   if (notFound) return (
     <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:14,padding:20,background:'#0a0a0a',color:'#e0e0ff'}}>
       <div style={{fontSize:40}}>◎</div>
@@ -209,7 +296,6 @@ export default function ProfilePage() {
     </div>
   );
 
-  /* ── loading ── */
   if (!data) return (
     <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'#0a0a0a'}}>
       <div style={{width:20,height:20,border:'2px solid rgba(168,85,247,.3)',borderTopColor:'#a855f7',borderRadius:'50%',animation:'spin .8s linear infinite'}}/>
@@ -217,50 +303,52 @@ export default function ProfilePage() {
     </div>
   );
 
-  /* ── resolve settings ── */
   const p = data.profile;
-  const ac = p.accent_color || '#a855f7';
-  const ac2 = p.badge_color || '#06b6d4';
-  const tx = p.text_color || '#e0e0ff';
+  const ac  = p.accent_color || '#a855f7';
+  const ac2 = p.badge_color  || '#06b6d4';
+  const tx  = p.text_color   || '#e0e0ff';
+  const doOrbit = asBool(p.avatar_orbit,   true);
+  const doLed   = asBool(p.card_led_border, true);
+  const doTilt  = asBool(p.card_tilt,       true);
+  const doViews = asBool(p.show_views,      true);
+  const doId    = asBool(p.show_id,         true);
+  const doMusic = asBool(p.show_music,      true);
   const isCenter = p.layout !== 'left';
   const isMiddle = p.card_position === 'middle';
-  const doOrbit  = bool(p.avatar_orbit,  true);
-  const doLed    = bool(p.card_led_border, true);
-  const doTilt   = bool(p.card_tilt,    true);
-  const doViews  = bool(p.show_views,   true);
-  const doId     = bool(p.show_id,      true);
-  const doMusic  = bool(p.show_music,   true);
-  const nf = NAME_FONT[p.name_font || 'orbitron'] || NAME_FONT.orbitron;
+  const nf = NAME_FONT[p.name_font||'orbitron'] || NAME_FONT.orbitron;
   const isCustomFont = p.font_family==='__custom__' && p.custom_font_url;
   const bodyFont = isCustomFont ? '__custom__' : (p.font_family || 'Space Grotesk');
   const hasSong = !!(p.song_url?.trim());
+  const glassOpacity = p.glass_opacity ?? 0.72;
+  const glassTint = p.glass_tint || 'auto';
 
-  const bgStyle = (): React.CSSProperties => {
+  const getBgStyle = (): React.CSSProperties => {
     if (p.background_type==='color') return {background:p.background_value||'#0a0a0a'};
     if (p.background_type==='gradient') return {background:p.background_value||'#0a0a0a'};
     if (p.background_type==='image') return {backgroundImage:`url(${p.background_value})`,backgroundSize:'cover',backgroundPosition:'center',backgroundAttachment:'fixed'};
     return {background:'#080810'};
   };
 
-  const cardBase: React.CSSProperties = (() => {
+  // Glass tint color
+  const tintColor = glassTint==='auto' ? ac : glassTint==='none' ? '0,0,0' : hexRgb(glassTint);
+
+  const getCardStyle = (): React.CSSProperties => {
     const cs = p.card_style || 'glass';
-    if (cs==='glass') return {background:'rgba(20,22,40,0.72)',backdropFilter:'blur(24px)',WebkitBackdropFilter:'blur(24px)',border:`1px solid ${ac}33`};
-    if (cs==='solid') return {background:'rgba(10,10,20,0.95)',border:`1px solid ${ac}33`};
+    if (cs==='glass') return {background:`rgba(${tintColor},${glassOpacity})`,backdropFilter:'blur(24px)',WebkitBackdropFilter:'blur(24px)',border:`1px solid ${ac}33`};
+    if (cs==='solid') return {background:`rgba(10,10,20,${glassOpacity+0.1})`,border:`1px solid ${ac}33`};
     if (cs==='outline') return {background:'transparent',border:`2px solid ${ac}66`};
-    if (cs==='neon') return {background:'rgba(10,10,20,0.92)',border:`1px solid ${ac}`,boxShadow:`0 0 28px ${ac}44,inset 0 0 20px rgba(0,0,0,.4)`};
-    return {background:'rgba(20,22,40,0.72)',backdropFilter:'blur(24px)',border:`1px solid ${ac}33`};
-  })();
+    if (cs==='neon') return {background:`rgba(10,10,20,${glassOpacity+0.1})`,border:`1px solid ${ac}`,boxShadow:`0 0 28px ${ac}44,inset 0 0 20px rgba(0,0,0,.4)`};
+    return {background:`rgba(${tintColor},${glassOpacity})`,backdropFilter:'blur(24px)',border:`1px solid ${ac}33`};
+  };
 
   return (
     <>
-      {/* fonts */}
       <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Orbitron:wght@400;700;900&family=Space+Mono:wght@400;700&family=Playfair+Display:wght@400;700&family=Bebas+Neue&family=Cinzel:wght@400;700&display=swap"/>
-      {!isCustomFont && p.font_family && !['Space Grotesk','Orbitron','Space Mono','Playfair Display','Bebas Neue','Cinzel'].includes(p.font_family) && (
-        <link rel="stylesheet" href={`https://fonts.googleapis.com/css2?family=${p.font_family.replace(/ /g,'+')}:wght@400;700&display=swap`}/>
+      {!isCustomFont && p.font_family && !['Space Grotesk','Orbitron','Space Mono','Playfair Display','Bebas Neue','Cinzel'].includes(p.font_family||'') && (
+        <link rel="stylesheet" href={`https://fonts.googleapis.com/css2?family=${(p.font_family||'').replace(/ /g,'+')}:wght@400;700&display=swap`}/>
       )}
       {isCustomFont && <style>{`@font-face{font-family:'__custom__';src:url('${p.custom_font_url}') format('${p.custom_font_url.endsWith('.woff2')?'woff2':p.custom_font_url.endsWith('.woff')?'woff':p.custom_font_url.endsWith('.otf')?'opentype':'truetype'}');font-weight:100 900;font-display:swap;}`}</style>}
 
-      {/* scoped styles */}
       <style>{`
         *{scrollbar-width:none;-ms-overflow-style:none;}*::-webkit-scrollbar{display:none;}
         @keyframes spin{to{transform:rotate(360deg)}}
@@ -273,62 +361,59 @@ export default function ProfilePage() {
         @keyframes sakura-fall{0%{transform:translateY(-20px) rotate(0) translateX(0);opacity:1}50%{transform:translateY(50vh) rotate(180deg) translateX(30px)}100%{transform:translateY(100vh) rotate(360deg) translateX(-20px);opacity:0}}
         @keyframes bubble-rise{0%{transform:translateY(100vh) scale(0);opacity:0}50%{opacity:.6}100%{transform:translateY(-10px) scale(1);opacity:0}}
         @keyframes fadeIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
-        /* card tilt transition */
         .pc{transition:transform .15s ease-out;transform-style:preserve-3d;}
-        /* led wrapper */
-        ${doLed ? `.lw{position:relative;border-radius:18px;}.lw::before{content:'';position:absolute;top:-2px;left:-2px;right:-2px;bottom:-2px;border-radius:18px;background:linear-gradient(90deg,transparent 0%,${ac} 20%,${ac2} 40%,transparent 60%);background-size:400%;animation:led-glow 4s ease-in-out infinite;z-index:0;pointer-events:none;}` : `.lw{border-radius:18px;}`}
-        /* orbit ring */
-        ${doOrbit && p.avatar_url ? `.av{position:relative;display:inline-block;}.av::after{content:'';position:absolute;top:-7px;left:-7px;right:-7px;bottom:-7px;border-radius:50%;background:radial-gradient(circle at 12px 12px,${ac} 15%,transparent 25%);animation:orbit 3s linear infinite;z-index:-1;filter:blur(2px);box-shadow:0 0 12px ${ac};}` : `.av{display:inline-block;}`}
-        /* link rows */
-        .pl{display:flex;align-items:center;gap:12px;padding:11px 16px;border-radius:12px;font-weight:500;font-size:14px;text-decoration:none;transition:transform .2s,background .2s;position:relative;overflow:hidden;-webkit-tap-highlight-color:transparent;cursor:pointer;}
+        ${doLed?`.lw{position:relative;border-radius:18px;}.lw::before{content:'';position:absolute;top:-2px;left:-2px;right:-2px;bottom:-2px;border-radius:18px;background:linear-gradient(90deg,transparent 0%,${ac} 20%,${ac2} 40%,transparent 60%);background-size:400%;animation:led-glow 4s ease-in-out infinite;z-index:0;pointer-events:none;}`:`.lw{border-radius:18px;}`}
+        ${doOrbit&&p.avatar_url?`.av{position:relative;display:inline-block;}.av::after{content:'';position:absolute;top:-7px;left:-7px;right:-7px;bottom:-7px;border-radius:50%;background:radial-gradient(circle at 12px 12px,${ac} 15%,transparent 25%);animation:orbit 3s linear infinite;z-index:-1;filter:blur(2px);box-shadow:0 0 12px ${ac};}`:`.av{display:inline-block;}`}
+        .pl{display:flex;align-items:center;gap:12px;padding:11px 16px;border-radius:12px;font-weight:500;font-size:14px;text-decoration:none;transition:transform .2s,background .2s;position:relative;overflow:hidden;-webkit-tap-highlight-color:transparent;}
         .pl:hover{transform:translateY(-1px);}
         .pl::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:linear-gradient(0deg,transparent,${ac}22,transparent);transform-origin:bottom right;animation:shine 3s linear infinite;opacity:0;transition:opacity .4s;}
         .pl:hover::before{opacity:1;}
+        /* cursor always visible */
+        *{cursor:auto!important;}
+        a,button,[role=button],.pl{cursor:pointer!important;}
+        input:not([type=submit]):not([type=button]),textarea{cursor:text!important;}
+        input[type=range]{cursor:grab!important;}
       `}</style>
 
-      {/* particles canvas */}
       {(p.background_type==='particles'||p.page_effect==='particles') && (
         <canvas ref={canvasRef} style={{position:'fixed',inset:0,zIndex:0,pointerEvents:'none'}}/>
       )}
       <div id="fx" style={{position:'fixed',inset:0,pointerEvents:'none',zIndex:1,overflow:'hidden'}}/>
 
-      {/* yt iframe */}
       {isYT && (
         <div style={{position:'fixed',width:1,height:1,overflow:'hidden',opacity:0,zIndex:-1}}>
-          <iframe id="yt-pl" src={`https://www.youtube.com/embed/${vid}?enablejsapi=1&autoplay=1&controls=0`} allow="autoplay" title="audio" style={{width:1,height:1}}/>
+          <iframe id="yt-pl" src={`https://www.youtube.com/embed/${vid}?enablejsapi=1&autoplay=1&controls=0&mute=0`} allow="autoplay" title="audio" style={{width:1,height:1}}/>
         </div>
       )}
-      {!isYT && hasSong && <audio ref={audioRef} src={p.song_url} loop preload="none"/>}
+      {!isYT && hasSong && <audio ref={audioRef} src={p.song_url} loop preload="auto"/>}
 
-      {/* page */}
-      <div style={{minHeight:'100vh',fontFamily:`'${bodyFont}','Space Grotesk',sans-serif`,color:tx,position:'relative',overflowX:'hidden',display:'flex',alignItems:isMiddle?'center':'flex-start',justifyContent:'center',padding:isMiddle?'20px 16px':'60px 16px 80px',...bgStyle()}}>
-        {bool(p.glow_enabled,false) && <div style={{position:'fixed',inset:0,background:`radial-gradient(ellipse at 50% 30%,${ac}18 0%,transparent 60%)`,pointerEvents:'none',zIndex:0}}/>}
+      <div style={{minHeight:'100vh',fontFamily:`'${bodyFont}','Space Grotesk',sans-serif`,color:tx,position:'relative',overflowX:'hidden',display:'flex',alignItems:isMiddle?'center':'flex-start',justifyContent:'center',padding:isMiddle?'20px 16px':'60px 16px 80px',...getBgStyle()}}>
+        {asBool(p.glow_enabled,false)&&<div style={{position:'fixed',inset:0,background:`radial-gradient(ellipse at 50% 30%,${ac}18 0%,transparent 60%)`,pointerEvents:'none',zIndex:0}}/>}
 
         <div style={{position:'relative',zIndex:10,width:'100%',maxWidth:600,animation:'fadeIn .6s ease'}}>
 
-          {/* ── card wrapper (LED) ── */}
           <div className="lw">
             <div
               ref={cardRef}
               className="pc"
-              onMouseMove={doTilt ? onMouseMove : undefined}
-              onMouseLeave={doTilt ? onMouseLeave : undefined}
-              style={{position:'relative',zIndex:1,borderRadius:16,padding:'32px 26px 26px',textAlign:isCenter?'center':'left',overflow:'hidden',...cardBase,...(p.card_image_url?{backgroundImage:`url(${p.card_image_url})`,backgroundSize:'cover',backgroundPosition:'center'}:{})}}
+              onMouseMove={doTilt?onMouseMove:undefined}
+              onMouseLeave={doTilt?onMouseLeave:undefined}
+              style={{position:'relative',zIndex:1,borderRadius:16,padding:'32px 26px 26px',textAlign:isCenter?'center':'left',overflow:'hidden',...getCardStyle(),...(p.card_image_url?{backgroundImage:`url(${p.card_image_url})`,backgroundSize:'cover',backgroundPosition:'center'}:{})}}
             >
-              {p.card_image_url && <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.62)',backdropFilter:'blur(2px)'}}/>}
+              {p.card_image_url&&<div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.62)',backdropFilter:'blur(2px)'}}/>}
               <div style={{position:'relative',zIndex:2}}>
 
-                {/* avatar */}
-                {p.avatar_url && (
+                {/* Avatar */}
+                {p.avatar_url&&(
                   <div style={{display:'flex',justifyContent:isCenter?'center':'flex-start',marginBottom:18}}>
                     <div className="av">
-                      <div style={{width:92,height:92,borderRadius:'50%',overflow:'hidden',border:`3px solid ${ac}`,boxShadow:bool(p.glow_enabled,false)?`0 0 24px ${ac}66,0 0 48px ${ac}22`:'0 4px 24px rgba(0,0,0,.6)',background:`${ac}18`}}>
+                      <div style={{width:92,height:92,borderRadius:'50%',overflow:'hidden',border:`3px solid ${ac}`,boxShadow:asBool(p.glow_enabled,false)?`0 0 24px ${ac}66,0 0 48px ${ac}22`:'0 4px 24px rgba(0,0,0,.6)',background:`${ac}18`}}>
                         <img src={p.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
                       </div>
                     </div>
                   </div>
                 )}
-                {!p.avatar_url && (
+                {!p.avatar_url&&(
                   <div style={{display:'flex',justifyContent:isCenter?'center':'flex-start',marginBottom:18}}>
                     <div style={{width:80,height:80,borderRadius:'50%',background:`${ac}18`,border:`2px solid ${ac}44`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:28,fontFamily:nf,color:ac}}>
                       {(p.display_name||data.username)?.[0]?.toUpperCase()||'?'}
@@ -336,54 +421,65 @@ export default function ProfilePage() {
                   </div>
                 )}
 
-                {/* name + badge */}
+                {/* Name + badge */}
                 <div style={{display:'flex',alignItems:'center',justifyContent:isCenter?'center':'flex-start',gap:10,flexWrap:'wrap',marginBottom:4}}>
                   <h1 className={p.font_effect&&p.font_effect!=='none'?`font-effect-${p.font_effect}`:''} style={{fontFamily:nf,fontWeight:700,fontSize:'clamp(18px,4vw,26px)',letterSpacing:'2px',color:tx,textShadow:`0 0 10px ${ac}88,0 0 20px ${ac}44`,'--accent':ac} as React.CSSProperties}>
                     {p.display_name||data.username}
                   </h1>
-                  {p.badge_text && (
-                    <span style={{background:`${p.badge_color||ac}18`,border:`1px solid ${p.badge_color||ac}55`,color:p.badge_color||ac,borderRadius:100,padding:'2px 10px',fontSize:11,fontWeight:600,letterSpacing:'0.03em'}}>
+                  {data.verified && asBool(p.show_verified_badge, true) && (
+                    <span title="Verified" style={{display:'inline-flex',alignItems:'center',flexShrink:0}}>
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                        <path d="M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-.612 3.73 3.745 3.745 0 0 1-3.73.612A3.745 3.745 0 0 1 12 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 0 1-3.73-.612 3.745 3.745 0 0 1-.612-3.73A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 .612-3.73 3.745 3.745 0 0 1 3.73-.612A3.745 3.745 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 0 1 3.73.612 3.746 3.746 0 0 1 .612 3.73A3.745 3.745 0 0 1 21 12z" fill="#1D4ED8" stroke="#3B82F6" strokeWidth="1.5"/>
+                        <path d="M9 12.75 11.25 15 15 9.75" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </span>
+                  )}
+                  {p.badge_text&&(
+                    <span style={{background:`${p.badge_color||ac}18`,border:`1px solid ${p.badge_color||ac}55`,color:p.badge_color||ac,borderRadius:100,padding:'2px 10px',fontSize:11,fontWeight:600}}>
                       {p.badge_text}
                     </span>
                   )}
                 </div>
 
-                {/* @handle + #id */}
+                {/* @handle #id */}
                 <div style={{display:'flex',alignItems:'center',justifyContent:isCenter?'center':'flex-start',gap:10,marginBottom:16,flexWrap:'wrap'}}>
                   <span style={{fontSize:12,color:`${tx}44`,fontFamily:"'Space Mono',monospace"}}>@{data.username}</span>
-                  {doId && data.displayId && <span style={{fontSize:11,color:`${tx}28`,fontFamily:"'Space Mono',monospace"}}>#{data.displayId}</span>}
+                  {doId&&data.displayId&&<span style={{fontSize:11,color:`${tx}28`,fontFamily:"'Space Mono',monospace"}}>#{data.displayId}</span>}
                 </div>
 
-                {/* bio */}
-                {p.bio && (
+                {/* Bio */}
+                {p.bio&&(
                   <p style={{fontSize:13,lineHeight:1.85,color:`${tx}bb`,maxWidth:460,margin:isCenter?'0 auto 20px':'0 0 20px',whiteSpace:'pre-wrap',wordBreak:'break-word',fontFamily:"'Space Mono',monospace"}}>
                     {p.bio}
                   </p>
                 )}
 
-                {/* links */}
-                {data.links.length > 0 && (
-                  <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:20}}>
+                {/* Links */}
+                {data.links.length>0&&(
+                  <div style={{display:'flex',flexDirection:'column',gap:10,marginBottom:20}}>
                     {data.links.map(lk => {
-                      /* crypto */
                       if (lk.link_type==='crypto') {
-                        const sym = CRYPTO_SYM[lk.icon]||'₿', name = CRYPTO_NAME[lk.icon]||lk.icon?.toUpperCase();
+                        const meta = CRYPTO_META[lk.icon] || { name: lk.icon?.toUpperCase(), color: ac };
                         return (
-                          <div key={lk.id} style={{display:'flex',alignItems:'center',gap:10,padding:'11px 14px',borderRadius:12,background:`${ac}0d`,border:`1px solid ${ac}22`}}>
-                            <span style={{fontSize:22,flexShrink:0,filter:`drop-shadow(0 0 8px ${ac}88)`}}>{sym}</span>
-                            <div style={{flex:1,minWidth:0}}>
-                              <div style={{fontSize:11,color:`${tx}44`,marginBottom:1}}>{name}{lk.title?` · ${lk.title}`:''}</div>
-                              <div style={{fontSize:11,color:`${tx}77`,fontFamily:"'Space Mono',monospace",overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{lk.url}</div>
+                          <div key={lk.id} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8,padding:'14px 16px',borderRadius:12,background:`${meta.color}0d`,border:`1px solid ${meta.color}22`}}>
+                            {/* Title row */}
+                            <div style={{display:'flex',alignItems:'center',gap:8,width:'100%',justifyContent:isCenter?'center':'flex-start'}}>
+                              <span style={{fontSize:12,color:`${tx}55`,fontFamily:"'Space Mono',monospace"}}>{meta.name}{lk.title?` · ${lk.title}`:''}</span>
                             </div>
-                            <CopyBtn addr={lk.url} accent={ac} text={tx}/>
+                            {/* Address */}
+                            <div style={{fontSize:11,color:`${tx}66`,fontFamily:"'Space Mono',monospace",wordBreak:'break-all',textAlign:'center',maxWidth:'100%',padding:'0 4px'}}>
+                              {lk.url}
+                            </div>
+                            {/* Coin icon button — click to copy */}
+                            <CryptoCopyBtn coin={lk.icon} address={lk.url} accent={ac}/>
                           </div>
                         );
                       }
-                      /* social/url */
+                      // Social/URL link
                       const key = lk.icon || detectSocialIcon(lk.url);
                       const Icon = SocialIcons[key] || SocialIcons['link'];
                       return (
-                        <a key={lk.id} href={url(lk.url)} target="_blank" rel="noopener noreferrer" className="pl" style={{background:`${ac}0d`,border:`1px solid ${ac}22`,color:tx}}>
+                        <a key={lk.id} href={fixUrl(lk.url)} target="_blank" rel="noopener noreferrer" className="pl" style={{background:`${ac}0d`,border:`1px solid ${ac}22`,color:tx}}>
                           <span style={{flexShrink:0,display:'flex',alignItems:'center',filter:`drop-shadow(0 0 5px ${ac}66)`}}>
                             <Icon size={18} color={tx}/>
                           </span>
@@ -395,16 +491,16 @@ export default function ProfilePage() {
                   </div>
                 )}
 
-                {/* footer */}
-                {(doViews || doId) && (
+                {/* Footer */}
+                {(doViews||doId)&&(
                   <div style={{display:'flex',alignItems:'center',justifyContent:isCenter?'center':'flex-start',gap:12,paddingTop:14,borderTop:`1px solid ${tx}0d`}}>
-                    {doViews && (
+                    {doViews&&(
                       <span style={{display:'flex',alignItems:'center',gap:5,fontSize:11,color:`${tx}33`,fontFamily:"'Space Mono',monospace"}}>
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={`${tx}44`} strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                         {Number(views).toLocaleString()}
                       </span>
                     )}
-                    {doId && data.displayId && <span style={{fontSize:11,color:`${tx}22`,fontFamily:"'Space Mono',monospace"}}>#{data.displayId}</span>}
+                    {doId&&data.displayId&&<span style={{fontSize:11,color:`${tx}22`,fontFamily:"'Space Mono',monospace"}}>#{data.displayId}</span>}
                     <Link href="/" style={{marginLeft:'auto',fontSize:11,color:`${tx}22`,fontFamily:"'Orbitron',sans-serif",letterSpacing:'1px'}}>oniion.cc</Link>
                   </div>
                 )}
@@ -412,24 +508,24 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* ── music player ── */}
-          {hasSong && doMusic && (
+          {/* Music player */}
+          {hasSong&&doMusic&&(
             <div style={{marginTop:10,borderRadius:14,padding:'13px 18px',display:'flex',alignItems:'center',gap:14,background:'rgba(255,255,255,0.03)',border:`1px solid ${ac}22`,backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)'}}>
               <button onClick={isYT?toggleYT:toggleAudio} style={{width:38,height:38,borderRadius:'50%',background:ac,border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,boxShadow:playing?`0 0 16px ${ac}88`:'none',transition:'box-shadow .3s'}}>
                 {playing
-                  ? <svg width="13" height="13" viewBox="0 0 24 24" fill="#fff"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-                  : <svg width="13" height="13" viewBox="0 0 24 24" fill="#fff"><polygon points="5 3 19 12 5 21 5 3"/></svg>}
+                  ?<svg width="13" height="13" viewBox="0 0 24 24" fill="#fff"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                  :<svg width="13" height="13" viewBox="0 0 24 24" fill="#fff"><polygon points="5 3 19 12 5 21 5 3"/></svg>}
               </button>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontSize:13,fontWeight:600,color:tx,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.song_title||'Now playing'}</div>
-                {p.song_artist && <div style={{fontSize:11,color:`${tx}55`,marginTop:1,fontFamily:"'Space Mono',monospace"}}>{p.song_artist}</div>}
+                {p.song_artist&&<div style={{fontSize:11,color:`${tx}55`,marginTop:1,fontFamily:"'Space Mono',monospace"}}>{p.song_artist}</div>}
               </div>
-              {playing && (
+              {playing&&(
                 <div style={{display:'flex',gap:2.5,alignItems:'flex-end',height:18,flexShrink:0}}>
                   {[1,2,3,4,5].map(i=><div key={i} style={{width:2.5,background:ac,borderRadius:2,animation:`float ${.3+i*.1}s ease-in-out infinite`,height:`${5+i*2.5}px`}}/>)}
                 </div>
               )}
-              {isYT && !playing && <svg width="14" height="14" viewBox="0 0 24 24" fill={`${tx}33`} style={{flexShrink:0}}><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>}
+              {isYT&&!playing&&<svg width="14" height="14" viewBox="0 0 24 24" fill={`${tx}33`} style={{flexShrink:0}}><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>}
             </div>
           )}
         </div>

@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useUploadThing } from '@/lib/uploadthing-client';
 import { CustomSelect } from '@/components/custom-select';
-import { SocialIcons, SOCIAL_OPTIONS, detectSocialIcon } from '@/components/social-icons';
+import { SOCIAL_OPTIONS, detectSocialIcon } from '@/components/social-icons';
+import { CRYPTO_META } from '@/components/crypto-icons';
 import {
   IconUser, IconPalette, IconSparkles, IconLink, IconMusic,
   IconSave, IconLogOut, IconExternalLink, IconPlus, IconX,
@@ -33,29 +34,26 @@ const PAGE_EFFECTS = [
   {value:'fireflies',label:'Fireflies'},{value:'matrix',label:'Matrix'},
 ];
 const CURSOR_EFFECTS = [
-  {value:'none',label:'Default cursor'},{value:'trail',label:'Sparkle trail'},
+  {value:'none',label:'Default cursor'},{value:'trail',label:'Trail'},
   {value:'ring',label:'Ring'},{value:'dot',label:'Dot'},
   {value:'crosshair',label:'Crosshair'},{value:'bubble',label:'Bubble'},
+];
+const TRAIL_STYLES = [
+  {value:'dot',label:'Dot'},{value:'star',label:'Star'},
+  {value:'ring',label:'Ring'},{value:'spark',label:'Spark'},
+  {value:'comet',label:'Comet'},
 ];
 const CARD_STYLES = [{value:'glass',label:'Glass'},{value:'solid',label:'Solid'},{value:'outline',label:'Outline'},{value:'neon',label:'Neon'}];
 const BG_TYPES = [
   {value:'color',label:'Solid Color'},{value:'gradient',label:'Gradient'},
-  {value:'image',label:'Image / GIF URL'},{value:'particles',label:'Particles'},
+  {value:'image',label:'Image / GIF'},{value:'particles',label:'Particles'},
 ];
-const CRYPTO_COINS = [
-  {value:'eth',label:'Ethereum (ETH)',symbol:'Ξ'},{value:'btc',label:'Bitcoin (BTC)',symbol:'₿'},
-  {value:'sol',label:'Solana (SOL)',symbol:'◎'},{value:'usdt',label:'Tether (USDT)',symbol:'₮'},
-  {value:'bnb',label:'BNB',symbol:'⬡'},{value:'xrp',label:'XRP',symbol:'✕'},
-  {value:'ltc',label:'Litecoin (LTC)',symbol:'Ł'},{value:'doge',label:'Dogecoin',symbol:'Ð'},
-  {value:'ada',label:'Cardano (ADA)',symbol:'₳'},{value:'avax',label:'Avalanche',symbol:'△'},
-  {value:'matic',label:'Polygon (MATIC)',symbol:'⬡'},{value:'trx',label:'TRON (TRX)',symbol:'◆'},
-];
+const CRYPTO_OPTIONS = Object.entries(CRYPTO_META).map(([k,v])=>({value:k,label:v.name}));
 
 type LinkItem = { title:string; url:string; icon:string; link_type:string };
 type Profile = {
   display_name:string; bio:string; avatar_url:string;
-  banner_url:string; banner_color:string;
-  background_image_url:string; card_image_url:string;
+  banner_url:string; banner_color:string; background_image_url:string; card_image_url:string;
   song_url:string; song_title:string; song_artist:string;
   background_type:string; background_value:string;
   text_color:string; accent_color:string; font_family:string;
@@ -63,12 +61,11 @@ type Profile = {
   layout:string; card_position:string;
   blur_enabled:boolean; glow_enabled:boolean;
   badge_text:string; badge_color:string;
-  cursor_effect:string; card_style:string;
+  cursor_effect:string; cursor_trail_style:string; card_style:string;
   custom_font_url:string; custom_font_name:string;
-  // optional feature toggles
   avatar_orbit:boolean; card_led_border:boolean; card_tilt:boolean;
   show_views:boolean; show_id:boolean; show_music:boolean;
-  name_font:string;
+  name_font:string; glass_opacity:number; glass_tint:string; show_verified_badge:boolean; verified?:boolean;
   total_views?:number; display_id?:number;
 };
 const DEF: Profile = {
@@ -79,60 +76,86 @@ const DEF: Profile = {
   text_color:'#ffffff', accent_color:'#a855f7', font_family:'Space Grotesk',
   font_effect:'none', page_effect:'none', effect_color:'#a855f7',
   layout:'center', card_position:'top', blur_enabled:false, glow_enabled:false,
-  badge_text:'', badge_color:'#a855f7', cursor_effect:'none', card_style:'glass',
-  custom_font_url:'', custom_font_name:'',
+  badge_text:'', badge_color:'#a855f7', cursor_effect:'none', cursor_trail_style:'dot',
+  card_style:'glass', custom_font_url:'', custom_font_name:'',
   avatar_orbit:true, card_led_border:true, card_tilt:true,
-  show_views:true, show_id:true, show_music:true, name_font:'orbitron',
+  show_views:true, show_id:true, show_music:true,
+  name_font:'orbitron', glass_opacity:0.72, glass_tint:'auto', show_verified_badge:true,
 };
 
 const TABS = [
-  {key:'profile',label:'Profile',icon:<IconUser size={13}/>},
-  {key:'appearance',label:'Style',icon:<IconPalette size={13}/>},
-  {key:'effects',label:'Effects',icon:<IconSparkles size={13}/>},
-  {key:'links',label:'Links',icon:<IconLink size={13}/>},
-  {key:'music',label:'Music',icon:<IconMusic size={13}/>},
-  {key:'extras',label:'Extras',icon:<IconSettings size={13}/>},
+  {key:'profile',  label:'Profile',    icon:<IconUser size={13}/>},
+  {key:'appearance',label:'Style',     icon:<IconPalette size={13}/>},
+  {key:'effects',  label:'Effects',    icon:<IconSparkles size={13}/>},
+  {key:'links',    label:'Links',      icon:<IconLink size={13}/>},
+  {key:'music',    label:'Music',      icon:<IconMusic size={13}/>},
+  {key:'extras',   label:'Extras',     icon:<IconSettings size={13}/>},
+  {key:'account',  label:'Account',    icon:<IconUser size={13}/>},
 ] as const;
 type Tab = typeof TABS[number]['key'];
 
-function Toggle({label, desc, checked, onChange}: {label:string; desc?:string; checked:boolean; onChange:(v:boolean)=>void}) {
+function Toggle({label,desc,checked,onChange}:{label:string;desc?:string;checked:boolean;onChange:(v:boolean)=>void}) {
   return (
     <div onClick={()=>onChange(!checked)} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,cursor:'pointer',padding:'10px 0',borderBottom:'1px solid rgba(255,255,255,0.04)',userSelect:'none' as const}}>
       <div>
         <div style={{fontSize:13,fontWeight:500,color:'#ccc'}}>{label}</div>
-        {desc && <div style={{fontSize:11,color:'#444',marginTop:2}}>{desc}</div>}
+        {desc&&<div style={{fontSize:11,color:'#444',marginTop:2}}>{desc}</div>}
       </div>
-      <div style={{width:38,height:22,borderRadius:11,background:checked?'#a855f7':'rgba(255,255,255,0.1)',position:'relative',transition:'background 0.2s',flexShrink:0}}>
-        <div style={{position:'absolute',top:3,left:checked?17:3,width:16,height:16,borderRadius:'50%',background:'#fff',transition:'left 0.2s'}}/>
+      <div style={{width:38,height:22,borderRadius:11,background:checked?'#a855f7':'rgba(255,255,255,0.1)',position:'relative',transition:'background .2s',flexShrink:0}}>
+        <div style={{position:'absolute',top:3,left:checked?17:3,width:16,height:16,borderRadius:'50%',background:'#fff',transition:'left .2s'}}/>
       </div>
     </div>
   );
 }
 
 function ImgUpload({label,value,onChange}:{label:string;value:string;onChange:(url:string)=>void}) {
-  const [uploading,setUploading]=useState(false);
+  const [up,setUp]=useState(false);
   const [err,setErr]=useState('');
   const ref=useRef<HTMLInputElement>(null);
   const {startUpload}=useUploadThing('imageUploader',{
-    onClientUploadComplete:(res)=>{
-      if(res?.[0]){const f=res[0];onChange((f as {ufsUrl?:string;url?:string}).ufsUrl||f.url||'');}
-      setUploading(false);
-    },
-    onUploadError:(e)=>{setErr(e.message);setUploading(false);},
+    onClientUploadComplete:(res)=>{if(res?.[0]){const f=res[0];onChange((f as {ufsUrl?:string;url?:string}).ufsUrl||f.url||'');}setUp(false);},
+    onUploadError:(e)=>{setErr(e.message);setUp(false);},
   });
   return (
     <div>
-      <label style={{display:'block',fontSize:12,color:'#555',marginBottom:6,fontWeight:500}}>{label}</label>
+      <label style={{display:'block',fontSize:12,color:'#555',marginBottom:5,fontWeight:500}}>{label}</label>
       <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
         {value&&<img src={value} alt="" style={{width:40,height:40,borderRadius:8,objectFit:'cover',flexShrink:0,border:'1px solid rgba(255,255,255,0.08)'}}/>}
         <input className="input" value={value} onChange={e=>onChange(e.target.value)} placeholder="https://… or upload" style={{flex:1,minWidth:100}}/>
-        <button type="button" onClick={()=>ref.current?.click()} className="btn btn-ghost" style={{fontSize:11,padding:'8px 10px',flexShrink:0,gap:4}} disabled={uploading}>
-          <IconUpload size={12}/>{uploading?'…':'Upload'}
+        <button type="button" onClick={()=>ref.current?.click()} className="btn btn-ghost" style={{fontSize:11,padding:'8px 10px',flexShrink:0,gap:4}} disabled={up}>
+          <IconUpload size={12}/>{up?'…':'Upload'}
         </button>
         <input ref={ref} type="file" accept="image/*,.gif" style={{display:'none'}} onChange={async e=>{
           const f=e.target.files?.[0];if(!f)return;
           if(f.size>8*1024*1024){setErr('Max 8MB');return;}
-          setUploading(true);setErr('');await startUpload([f]);
+          setUp(true);setErr('');await startUpload([f]);
+        }}/>
+      </div>
+      {err&&<div style={{fontSize:11,color:'#f87171',marginTop:3}}>{err}</div>}
+    </div>
+  );
+}
+
+function AudioUpload({label,value,onChange}:{label:string;value:string;onChange:(url:string)=>void}) {
+  const [up,setUp]=useState(false);
+  const [err,setErr]=useState('');
+  const ref=useRef<HTMLInputElement>(null);
+  const {startUpload}=useUploadThing('audioUploader',{
+    onClientUploadComplete:(res)=>{if(res?.[0]){const f=res[0];onChange((f as {ufsUrl?:string;url?:string}).ufsUrl||f.url||'');}setUp(false);},
+    onUploadError:(e)=>{setErr(e.message);setUp(false);},
+  });
+  return (
+    <div>
+      <label style={{display:'block',fontSize:12,color:'#555',marginBottom:5,fontWeight:500}}>{label}</label>
+      <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+        <input className="input" value={value} onChange={e=>onChange(e.target.value)} placeholder="https://…/song.mp3 or youtube.com/… or upload" style={{flex:1,minWidth:100}}/>
+        <button type="button" onClick={()=>ref.current?.click()} className="btn btn-ghost" style={{fontSize:11,padding:'8px 10px',flexShrink:0,gap:4}} disabled={up}>
+          <IconUpload size={12}/>{up?'…':'Upload'}
+        </button>
+        <input ref={ref} type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a" style={{display:'none'}} onChange={async e=>{
+          const f=e.target.files?.[0];if(!f)return;
+          if(f.size>10*1024*1024){setErr('Max 10MB');return;}
+          setUp(true);setErr('');await startUpload([f]);
         }}/>
       </div>
       {err&&<div style={{fontSize:11,color:'#f87171',marginTop:3}}>{err}</div>}
@@ -142,7 +165,7 @@ function ImgUpload({label,value,onChange}:{label:string;value:string;onChange:(u
 
 export default function Dashboard() {
   const router=useRouter();
-  const [user,setUser]=useState<{username:string}|null>(null);
+  const [user,setUser]=useState<{username:string;userId?:string}|null>(null);
   const [profile,setProfile]=useState<Profile>(DEF);
   const [links,setLinks]=useState<LinkItem[]>([]);
   const [saving,setSaving]=useState(false);
@@ -152,34 +175,24 @@ export default function Dashboard() {
   const [fontUploading,setFontUploading]=useState(false);
   const [fontError,setFontError]=useState('');
   const fontRef=useRef<HTMLInputElement>(null);
+  // Account tab state
+  const [curPwd,setCurPwd]=useState('');
+  const [newUser,setNewUser]=useState('');
+  const [newPwd,setNewPwd]=useState('');
+  const [acctMsg,setAcctMsg]=useState('');
+  const [acctErr,setAcctErr]=useState('');
+  const [acctLoading,setAcctLoading]=useState(false);
+
   const set=(k:keyof Profile,v:unknown)=>setProfile(p=>({...p,[k]:v}));
 
   const {startUpload:uploadFont}=useUploadThing('fontUploader',{
     onClientUploadComplete:(res)=>{
-      if(res?.[0]){const f=res[0];const url=(f as {ufsUrl?:string;url?:string}).ufsUrl||f.url||'';
-        const name=f.name.replace(/\.[^.]+$/,'').replace(/[-_]/g,' ');
+      if(res?.[0]){const f=res[0];const url=(f as {ufsUrl?:string;url?:string}).ufsUrl||f.url||'';const name=f.name.replace(/\.[^.]+$/,'').replace(/[-_]/g,' ');
         setProfile(p=>({...p,custom_font_url:url,custom_font_name:name,font_family:'__custom__'}));}
       setFontUploading(false);
     },
     onUploadError:(e)=>{setFontError(e.message);setFontUploading(false);},
   });
-
-  useEffect(() => {
-  if (sessionStorage.getItem('heartbeat_dashboard')) return;
-
-  sessionStorage.setItem('heartbeat_dashboard', 'true');
-
-  fetch('/api/heartbeat', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      path: window.location.pathname,
-    }),
-  }).catch(console.error);
-}, []);
-
 
   useEffect(()=>{
     fetch('/api/auth/session').then(r=>r.json()).then(d=>{
@@ -194,6 +207,11 @@ export default function Dashboard() {
           show_id:d2.profile.show_id??true,
           show_music:d2.profile.show_music??true,
           name_font:d2.profile.name_font||'orbitron',
+          glass_opacity:d2.profile.glass_opacity??0.72,
+          glass_tint:d2.profile.glass_tint||'auto',
+          cursor_trail_style:d2.profile.cursor_trail_style||'dot',
+          show_verified_badge:d2.profile.show_verified_badge??true,
+          verified:d2.profile.verified??false,
         });
         if(d2.links)setLinks(d2.links.map((l:LinkItem)=>({...l,link_type:l.link_type||'url'})));
         setLoading(false);
@@ -203,22 +221,49 @@ export default function Dashboard() {
 
   const save=useCallback(async()=>{
     setSaving(true);
-    await fetch('/api/profile',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({...profile,links})});
-    setSaving(false);setSaved(true);setTimeout(()=>setSaved(false),2000);
+    try {
+      const res=await fetch('/api/profile',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({...profile,links})});
+      const data=await res.json();
+      if(!res.ok){alert('Save failed: '+(data.error||'Unknown error'));}
+      else{setSaved(true);setTimeout(()=>setSaved(false),2000);}
+    } catch(e){alert('Save error: '+String(e));}
+    setSaving(false);
   },[profile,links]);
 
   const logout=async()=>{await fetch('/api/auth/logout',{method:'POST'});router.push('/');};
 
+  const changeUsername=async()=>{
+    if(!newUser.trim()){setAcctErr('Enter a new username');return;}
+    if(!curPwd){setAcctErr('Enter your current password');return;}
+    setAcctLoading(true);setAcctErr('');setAcctMsg('');
+    const res=await fetch('/api/account',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'username',newUsername:newUser,currentPassword:curPwd})});
+    const d=await res.json();
+    if(!res.ok){setAcctErr(d.error);}
+    else{setAcctMsg('Username changed! Reloading…');setUser(u=>u?{...u,username:d.username}:u);setNewUser('');setCurPwd('');setTimeout(()=>window.location.reload(),1500);}
+    setAcctLoading(false);
+  };
+
+  const changePassword=async()=>{
+    if(!newPwd||newPwd.length<6){setAcctErr('New password must be 6+ characters');return;}
+    if(!curPwd){setAcctErr('Enter your current password');return;}
+    setAcctLoading(true);setAcctErr('');setAcctMsg('');
+    const res=await fetch('/api/account',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'password',newPassword:newPwd,currentPassword:curPwd})});
+    const d=await res.json();
+    if(!res.ok){setAcctErr(d.error);}
+    else{setAcctMsg('Password changed successfully!');setNewPwd('');setCurPwd('');}
+    setAcctLoading(false);
+  };
+
+  if(loading)return<div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',color:'#333',fontSize:13}}>Loading…</div>;
+
   const usingCustomFont=!!(profile.custom_font_url&&profile.font_family==='__custom__');
   const views=Number(profile.total_views??0).toLocaleString();
 
-  if(loading) return <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',color:'#333',fontSize:13}}>Loading…</div>;
-
-  return (
-    <div style={{minHeight:'100vh',background:'#0A0A1A'}}>
-      {/* Topbar */}
-      <nav style={{borderBottom:'1px solid rgba(255,255,255,0.05)',padding:'0 16px',display:'flex',alignItems:'center',gap:8,height:52,position:'sticky',top:0,background:'rgba(10,10,26,0.97)',backdropFilter:'blur(12px)',zIndex:200}}>
-        <Link href="/" style={{fontWeight:800,fontSize:17,marginRight:'auto',flexShrink:0}}>
+  return(
+    <div style={{minHeight:'100vh',background:'#0a0a0a'}}>
+      {/* Nav */}
+      <nav style={{borderBottom:'1px solid rgba(255,255,255,0.05)',padding:'0 16px',display:'flex',alignItems:'center',gap:8,height:52,position:'sticky',top:0,background:'rgba(10,10,10,0.97)',backdropFilter:'blur(12px)',zIndex:200}}>
+        <Link href="/" style={{fontWeight:800,fontSize:17,marginRight:'auto',flexShrink:0,color:'#e0e0ff'}}>
           <span style={{color:'#a855f7'}}>oni</span>ion.cc
         </Link>
         <span style={{fontSize:11,color:'#444',display:'flex',alignItems:'center',gap:4,flexShrink:0}}>
@@ -243,7 +288,7 @@ export default function Dashboard() {
         </div>
 
         {/* Tabs */}
-        <div style={{display:'flex',gap:2,marginBottom:20,overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
+        <div style={{display:'flex',gap:2,marginBottom:20,overflowX:'auto',WebkitOverflowScrolling:'touch' as unknown as string}}>
           {TABS.map(t=>(
             <button key={t.key} onClick={()=>setTab(t.key)} style={{
               background:tab===t.key?'rgba(168,85,247,0.1)':'none',
@@ -251,7 +296,7 @@ export default function Dashboard() {
               color:tab===t.key?'#c084fc':'#555',
               fontSize:12,padding:'7px 12px',cursor:'pointer',fontFamily:'inherit',
               borderRadius:8,fontWeight:tab===t.key?600:400,
-              display:'flex',alignItems:'center',gap:5,flexShrink:0,transition:'all 0.15s',
+              display:'flex',alignItems:'center',gap:5,flexShrink:0,transition:'all .15s',
             }}>{t.icon}{t.label}</button>
           ))}
         </div>
@@ -261,9 +306,9 @@ export default function Dashboard() {
           <Card title="Identity" icon={<IconUser size={12}/>}>
             <Field label="Display Name"><input className="input" value={profile.display_name} onChange={e=>set('display_name',e.target.value)} placeholder="Your name" maxLength={64}/></Field>
             <Field label="Bio"><textarea className="input" value={profile.bio} onChange={e=>set('bio',e.target.value)} placeholder="Tell the world about yourself…" maxLength={300} rows={3}/></Field>
-            <Field label="Badge text (optional)">
+            <Field label="Badge text">
               <div style={{display:'flex',gap:8}}>
-                <input className="input" value={profile.badge_text} onChange={e=>set('badge_text',e.target.value)} placeholder="e.g. artist, she/her" maxLength={64}/>
+                <input className="input" value={profile.badge_text} onChange={e=>set('badge_text',e.target.value)} placeholder="artist, she/her, etc" maxLength={64}/>
                 <input type="color" value={profile.badge_color} onChange={e=>set('badge_color',e.target.value)} style={{width:42,height:40,border:'none',borderRadius:8,cursor:'pointer',padding:2,background:'none',flexShrink:0}}/>
               </div>
             </Field>
@@ -317,7 +362,7 @@ export default function Dashboard() {
             <Field label="Name / Title Font">
               <CustomSelect value={profile.name_font||'orbitron'} onChange={v=>set('name_font',v)} options={NAME_FONTS}/>
             </Field>
-            <Field label="Upload custom body font (.ttf / .otf / .woff / .woff2)">
+            <Field label="Custom font upload (.ttf / .otf / .woff / .woff2)">
               <div style={{border:usingCustomFont?'1px solid rgba(168,85,247,0.35)':'1px solid rgba(255,255,255,0.06)',borderRadius:12,padding:14,background:'rgba(255,255,255,0.015)'}}>
                 {usingCustomFont?(
                   <div style={{display:'flex',alignItems:'center',gap:10}}>
@@ -367,9 +412,27 @@ export default function Dashboard() {
             <Field label="Card Background Image (optional)">
               <ImgUpload label="" value={profile.card_image_url} onChange={v=>set('card_image_url',v)}/>
             </Field>
+            {/* Glass opacity */}
+            <Field label={`Glass Opacity: ${Math.round((profile.glass_opacity??0.72)*100)}%`}>
+              <input type="range" min={0.05} max={0.98} step={0.01} value={profile.glass_opacity??0.72} onChange={e=>set('glass_opacity',parseFloat(e.target.value))} className="input" style={{padding:0,height:8,background:`rgba(168,85,247,${profile.glass_opacity??0.72})`}}/>
+            </Field>
+            {/* Glass tint */}
+            <Field label="Glass Tint Color">
+              <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+                {['auto','none','#0a0a0a','#0a0a1a','#1a0a0a'].map(v=>(
+                  <button key={v} onClick={()=>set('glass_tint',v)} style={{padding:'6px 12px',borderRadius:8,fontSize:12,border:`1px solid ${profile.glass_tint===v?'#a855f7':'rgba(255,255,255,0.1)'}`,background:profile.glass_tint===v?'rgba(168,85,247,0.15)':'rgba(255,255,255,0.04)',color:profile.glass_tint===v?'#c084fc':'#888',cursor:'pointer'}}>
+                    {v==='auto'?'Match accent':v==='none'?'Dark':v}
+                  </button>
+                ))}
+                <div style={{display:'flex',alignItems:'center',gap:6}}>
+                  <input type="color" value={!['auto','none'].includes(profile.glass_tint||'auto')?(profile.glass_tint||'#0a0a1a'):'#0a0a1a'} onChange={e=>set('glass_tint',e.target.value)} style={{width:36,height:32,border:'none',borderRadius:6,cursor:'pointer'}}/>
+                  <span style={{fontSize:11,color:'#555'}}>Custom</span>
+                </div>
+              </div>
+            </Field>
             <div style={{display:'flex',gap:20,flexWrap:'wrap'}}>
               <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',fontSize:13}}>
-                <input type="checkbox" checked={profile.blur_enabled} onChange={e=>set('blur_enabled',e.target.checked)} style={{accentColor:'#a855f7',width:14,height:14}}/>Blur
+                <input type="checkbox" checked={profile.blur_enabled} onChange={e=>set('blur_enabled',e.target.checked)} style={{accentColor:'#a855f7',width:14,height:14}}/>Blur bg
               </label>
               <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',fontSize:13}}>
                 <input type="checkbox" checked={profile.glow_enabled} onChange={e=>set('glow_enabled',e.target.checked)} style={{accentColor:'#a855f7',width:14,height:14}}/>Glow
@@ -385,7 +448,7 @@ export default function Dashboard() {
           </Card>
           <Card title="Page Effect" icon={<IconWand size={12}/>}>
             <Field label="Effect"><CustomSelect value={profile.page_effect} onChange={v=>set('page_effect',v)} options={PAGE_EFFECTS}/></Field>
-            <Field label="Effect Color">
+            <Field label="Color">
               <div style={{display:'flex',gap:8,alignItems:'center'}}>
                 <input type="color" value={profile.effect_color} onChange={e=>set('effect_color',e.target.value)} style={{width:42,height:40,border:'none',borderRadius:8,cursor:'pointer',flexShrink:0}}/>
                 <input className="input" value={profile.effect_color} onChange={e=>set('effect_color',e.target.value)}/>
@@ -393,7 +456,12 @@ export default function Dashboard() {
             </Field>
           </Card>
           <Card title="Cursor Effect" icon={<IconMousePointer size={12}/>}>
-            <CustomSelect value={profile.cursor_effect} onChange={v=>set('cursor_effect',v)} options={CURSOR_EFFECTS}/>
+            <Field label="Type"><CustomSelect value={profile.cursor_effect} onChange={v=>set('cursor_effect',v)} options={CURSOR_EFFECTS}/></Field>
+            {profile.cursor_effect==='trail'&&(
+              <Field label="Trail Style">
+                <CustomSelect value={profile.cursor_trail_style||'dot'} onChange={v=>set('cursor_trail_style',v)} options={TRAIL_STYLES}/>
+              </Field>
+            )}
           </Card>
         </div>}
 
@@ -406,11 +474,9 @@ export default function Dashboard() {
                 {lk.link_type==='crypto'?(
                   <>
                     <div style={{display:'flex',gap:8,alignItems:'center'}}>
-                      <div style={{width:36,height:36,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(255,255,255,0.04)',borderRadius:8,flexShrink:0,fontSize:18}}>
-                        {CRYPTO_COINS.find(c=>c.value===lk.icon)?.symbol||'₿'}
-                      </div>
-                      <div style={{flex:1,minWidth:0}}>
-                        <CustomSelect value={lk.icon||'eth'} onChange={v=>setLinks(l=>l.map((x,j)=>j===i?{...x,icon:v}:x))} options={CRYPTO_COINS.map(c=>({value:c.value,label:c.label,preview:<span style={{fontFamily:'monospace',fontSize:14}}>{c.symbol}</span>}))}/>
+                      <div style={{flex:1}}>
+                        <CustomSelect value={lk.icon||'eth'} onChange={v=>setLinks(l=>l.map((x,j)=>j===i?{...x,icon:v}:x))}
+                          options={CRYPTO_OPTIONS.map(c=>({value:c.value,label:c.label,preview:<span style={{fontSize:14}}>{CRYPTO_META[c.value]?.color?'●':''}</span>}))}/>
                       </div>
                       <button onClick={()=>setLinks(l=>l.filter((_,j)=>j!==i))} style={{background:'rgba(239,68,68,0.08)',border:'1px solid rgba(239,68,68,0.15)',color:'#f87171',borderRadius:8,padding:8,cursor:'pointer',flexShrink:0,display:'flex'}}><IconX size={12}/></button>
                     </div>
@@ -420,9 +486,14 @@ export default function Dashboard() {
                 ):(
                   <>
                     <div style={{display:'flex',gap:8,alignItems:'center'}}>
-                      <select value={lk.icon||'link'} onChange={e=>setLinks(l=>l.map((x,j)=>j===i?{...x,icon:e.target.value}:x))} style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:8,padding:'8px 10px',color:'#fff',fontFamily:'inherit',fontSize:12,cursor:'pointer',outline:'none',width:110,flexShrink:0}}>
-                        {SOCIAL_OPTIONS.map(s=><option key={s.key} value={s.key}>{s.label}</option>)}
-                      </select>
+                      {/* Custom dropdown for social platform */}
+                      <div style={{width:140,flexShrink:0}}>
+                        <CustomSelect
+                          value={lk.icon||'link'}
+                          onChange={v=>setLinks(l=>l.map((x,j)=>j===i?{...x,icon:v}:x))}
+                          options={SOCIAL_OPTIONS.map(s=>({value:s.key,label:s.label}))}
+                        />
+                      </div>
                       <input className="input" value={lk.title} onChange={e=>setLinks(l=>l.map((x,j)=>j===i?{...x,title:e.target.value}:x))} placeholder="Label" style={{flex:1,minWidth:0}} maxLength={128}/>
                       <button onClick={()=>setLinks(l=>l.filter((_,j)=>j!==i))} style={{background:'rgba(239,68,68,0.08)',border:'1px solid rgba(239,68,68,0.15)',color:'#f87171',borderRadius:8,padding:8,cursor:'pointer',flexShrink:0,display:'flex'}}><IconX size={12}/></button>
                     </div>
@@ -448,8 +519,8 @@ export default function Dashboard() {
 
         {/* ── MUSIC ── */}
         {tab==='music'&&<Card title="Music Player" icon={<IconMusic size={12}/>}>
-          <p style={{color:'#444',fontSize:12,marginBottom:10}}>Paste a direct .mp3 URL or a YouTube link — audio only.</p>
-          <Field label="Audio / YouTube URL"><input className="input" value={profile.song_url} onChange={e=>set('song_url',e.target.value)} placeholder="https://…/song.mp3  or  youtube.com/watch?v=…"/></Field>
+          <p style={{color:'#444',fontSize:12,marginBottom:10}}>Upload an audio file (max 10MB) or paste a direct URL / YouTube link. Autoplays when profile loads.</p>
+          <AudioUpload label="Audio File / URL / YouTube" value={profile.song_url} onChange={v=>set('song_url',v)}/>
           <Field label="Song Title"><input className="input" value={profile.song_title} onChange={e=>set('song_title',e.target.value)} placeholder="Song name" maxLength={100}/></Field>
           <Field label="Artist"><input className="input" value={profile.song_artist} onChange={e=>set('song_artist',e.target.value)} placeholder="Artist name" maxLength={100}/></Field>
         </Card>}
@@ -458,13 +529,52 @@ export default function Dashboard() {
         {tab==='extras'&&<div style={{display:'flex',flexDirection:'column',gap:14}}>
           <Card title="Card Animations" icon={<IconSparkles size={12}/>}>
             <Toggle label="LED border animation" desc="Animated gradient glow around the card" checked={profile.card_led_border} onChange={v=>set('card_led_border',v)}/>
-            <Toggle label="3D tilt on hover" desc="Card tilts in 3D when you move your mouse over it" checked={profile.card_tilt} onChange={v=>set('card_tilt',v)}/>
-            <Toggle label="Avatar orbit ring" desc="Glowing orbit animation around the profile picture" checked={profile.avatar_orbit} onChange={v=>set('avatar_orbit',v)}/>
+            <Toggle label="3D tilt on hover" desc="Card tilts in 3D when you move your mouse" checked={profile.card_tilt} onChange={v=>set('card_tilt',v)}/>
+            <Toggle label="Avatar orbit ring" desc="Glowing orbit animation around profile picture" checked={profile.avatar_orbit} onChange={v=>set('avatar_orbit',v)}/>
           </Card>
           <Card title="Profile Info" icon={<IconUser size={12}/>}>
-            <Toggle label="Show view counter" desc="Show how many people have visited your profile" checked={profile.show_views} onChange={v=>set('show_views',v)}/>
-            <Toggle label="Show #ID" desc="Show your unique profile number (e.g. #42)" checked={profile.show_id} onChange={v=>set('show_id',v)}/>
-            <Toggle label="Show music player" desc="Show the music player card even when a song is set" checked={profile.show_music} onChange={v=>set('show_music',v)}/>
+            <Toggle label="Show view counter" desc="Show how many people visited your profile" checked={profile.show_views} onChange={v=>set('show_views',v)}/>
+            <Toggle label="Show #ID" desc="Show your unique profile number" checked={profile.show_id} onChange={v=>set('show_id',v)}/>
+            <Toggle label="Show music player" desc="Show the music player card" checked={profile.show_music} onChange={v=>set('show_music',v)}/>
+          </Card>
+          {profile.verified && <Card title="Verified Badge" icon={<IconCheck size={12}/>}>
+            <Toggle label="Show verified badge" desc="Display the blue verified checkmark next to your name" checked={profile.show_verified_badge} onChange={v=>set('show_verified_badge',v)}/>
+            <p style={{fontSize:11,color:'#444',marginTop:4}}>Your account is verified. You can hide the badge if you prefer.</p>
+          </Card>}
+          {!profile.verified && <Card title="Verified Badge" icon={<IconCheck size={12}/>}>
+            <p style={{fontSize:12,color:'#555'}}>Verification is granted manually. Contact us if you believe you qualify.</p>
+          </Card>}
+        </div>}
+
+        {/* ── ACCOUNT ── */}
+        {tab==='account'&&<div style={{display:'flex',flexDirection:'column',gap:14}}>
+          <Card title="Change Username" icon={<IconUser size={12}/>}>
+            <p style={{color:'#444',fontSize:12,marginBottom:8}}>Your profile URL will change to oniion.cc/newname.</p>
+            <Field label="New username">
+              <input className="input" value={newUser} onChange={e=>setNewUser(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g,''))} placeholder="newusername" maxLength={32}/>
+            </Field>
+            <Field label="Current password">
+              <input className="input" type="password" value={curPwd} onChange={e=>setCurPwd(e.target.value)} placeholder="Required to confirm"/>
+            </Field>
+            {acctErr&&<div style={{fontSize:12,color:'#f87171',padding:'8px 12px',background:'rgba(239,68,68,0.08)',borderRadius:8}}>{acctErr}</div>}
+            {acctMsg&&<div style={{fontSize:12,color:'#4ade80',padding:'8px 12px',background:'rgba(74,222,128,0.08)',borderRadius:8}}>{acctMsg}</div>}
+            <button onClick={changeUsername} className="btn btn-primary" disabled={acctLoading} style={{alignSelf:'flex-start',gap:6}}>
+              <IconCheck size={13}/>{acctLoading?'Saving…':'Change username'}
+            </button>
+          </Card>
+
+          <Card title="Change Password" icon={<IconSettings size={12}/>}>
+            <Field label="Current password">
+              <input className="input" type="password" value={curPwd} onChange={e=>setCurPwd(e.target.value)} placeholder="Your current password"/>
+            </Field>
+            <Field label="New password">
+              <input className="input" type="password" value={newPwd} onChange={e=>setNewPwd(e.target.value)} placeholder="Min. 6 characters"/>
+            </Field>
+            {acctErr&&<div style={{fontSize:12,color:'#f87171',padding:'8px 12px',background:'rgba(239,68,68,0.08)',borderRadius:8}}>{acctErr}</div>}
+            {acctMsg&&<div style={{fontSize:12,color:'#4ade80',padding:'8px 12px',background:'rgba(74,222,128,0.08)',borderRadius:8}}>{acctMsg}</div>}
+            <button onClick={changePassword} className="btn btn-primary" disabled={acctLoading} style={{alignSelf:'flex-start',gap:6}}>
+              <IconCheck size={13}/>{acctLoading?'Saving…':'Change password'}
+            </button>
           </Card>
         </div>}
 
@@ -482,9 +592,9 @@ export default function Dashboard() {
 }
 
 function Card({title,icon,children}:{title:string;icon:React.ReactNode;children:React.ReactNode}) {
-  return (
+  return(
     <div style={{background:'rgba(255,255,255,0.015)',border:'1px solid rgba(255,255,255,0.055)',borderRadius:14,padding:'16px 14px'}}>
-      <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:14,color:'#555',fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.07em'}}>
+      <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:14,color:'#555',fontSize:11,fontWeight:600,textTransform:'uppercase' as const,letterSpacing:'0.07em'}}>
         {icon}{title}
       </div>
       <div style={{display:'flex',flexDirection:'column',gap:12}}>{children}</div>
@@ -492,7 +602,7 @@ function Card({title,icon,children}:{title:string;icon:React.ReactNode;children:
   );
 }
 function Field({label,children}:{label:string;children:React.ReactNode}) {
-  return (
+  return(
     <div>
       {label&&<label style={{display:'block',fontSize:12,color:'#555',marginBottom:5,fontWeight:500}}>{label}</label>}
       {children}

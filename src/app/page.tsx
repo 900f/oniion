@@ -2,23 +2,10 @@
 export const dynamic = 'force-dynamic';
 import { useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { IconArrowRight, IconEye, IconMusic, IconSparkles, IconLink, IconFont, IconZap } from '@/components/icons';
+import { IconMusic, IconSparkles, IconFont, IconLink, IconEye, IconImage } from '@/components/icons';
 
 export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-
-
-  useEffect(() => {
-  fetch('/api/heartbeat', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      path: window.location.pathname,
-    }),
-  }).catch(console.error);
-}, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -33,14 +20,14 @@ export default function Home() {
     resize();
 
     const particles: { x: number; y: number; vx: number; vy: number; size: number; alpha: number }[] = [];
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 80; i++) {
       particles.push({
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
-        vx: (Math.random() - 0.5) * 0.25,
-        vy: (Math.random() - 0.5) * 0.25,
-        size: Math.random() * 1.2 + 0.3,
-        alpha: Math.random() * 0.3 + 0.05,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: (Math.random() - 0.5) * 0.3,
+        size: Math.random() * 1.5 + 0.3,
+        alpha: Math.random() * 0.35 + 0.05,
       });
     }
 
@@ -63,9 +50,9 @@ export default function Home() {
           const q = particles[j];
           const dx = p.x - q.x, dy = p.y - q.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 100) {
+          if (dist < 120) {
             ctx.beginPath();
-            ctx.strokeStyle = `rgba(168,85,247,${0.04 * (1 - dist / 100)})`;
+            ctx.strokeStyle = `rgba(168,85,247,${0.05 * (1 - dist / 120)})`;
             ctx.lineWidth = 0.5;
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(q.x, q.y);
@@ -81,61 +68,72 @@ export default function Home() {
   }, []);
 
   const features = [
-    { icon: <IconMusic size={16} />, label: 'Music player' },
-    { icon: <IconSparkles size={16} />, label: 'Page effects' },
-    { icon: <IconFont size={16} />, label: 'Custom fonts' },
-    { icon: <IconLink size={16} />, label: 'Custom links' },
-    { icon: <IconEye size={16} />, label: 'View counter' },
-    { icon: <IconZap size={16} />, label: 'Animations' },
+    { icon: <IconMusic size={15} color="currentColor" />, label: 'Music player' },
+    { icon: <IconSparkles size={15} color="currentColor" />, label: 'Page effects' },
+    { icon: <IconFont size={15} color="currentColor" />, label: 'Custom fonts' },
+    { icon: <IconLink size={15} color="currentColor" />, label: 'Custom links' },
+    { icon: <IconEye size={15} color="currentColor" />, label: 'View counter' },
+    { icon: <IconImage size={15} color="currentColor" />, label: 'Full theming' },
   ];
 
   return (
-    <div style={{ minHeight: '100vh', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ minHeight: '100vh', position: 'relative', overflow: 'hidden', background: '#0a0a0a' }}>
       <canvas ref={canvasRef} style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }} />
 
-      {/* Soft orb */}
-      <div style={{ position: 'fixed', top: '15%', left: '50%', transform: 'translateX(-50%)', width: 600, height: 400, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(168,85,247,0.07) 0%, transparent 70%)', filter: 'blur(40px)', pointerEvents: 'none', zIndex: 0 }} />
+      {/* Purple glow orb behind hero */}
+      <div style={{ position: 'fixed', top: '25%', left: '50%', transform: 'translateX(-50%)', width: 700, height: 500, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(120,40,200,0.18) 0%, transparent 70%)', filter: 'blur(60px)', pointerEvents: 'none', zIndex: 0 }} />
 
       {/* Nav */}
-      <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, padding: '0 32px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.04)', background: 'rgba(6,6,8,0.8)', backdropFilter: 'blur(16px)' }}>
-        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, letterSpacing: '-0.3px' }}>
-          <span style={{ color: '#a855f7' }}>oni</span>ion.cc
+      <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, padding: '0 32px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(10,10,10,0.85)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 20, letterSpacing: '-0.5px' }}>
+          <span style={{ color: '#a855f7' }}>oni</span><span style={{ color: '#fff' }}>ion.cc</span>
         </span>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Link href="/login" className="btn btn-ghost" style={{ padding: '7px 16px', fontSize: 13 }}>Log in</Link>
-          <Link href="/register" className="btn btn-primary" style={{ padding: '7px 16px', fontSize: 13 }}>Get started</Link>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <Link href="/login" style={{ padding: '8px 18px', fontSize: 13, fontWeight: 600, color: '#fff', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, fontFamily: "'Space Grotesk',sans-serif" }}>
+            Log in
+          </Link>
+          <Link href="/register" style={{ padding: '8px 18px', fontSize: 13, fontWeight: 600, color: '#fff', background: '#a855f7', border: 'none', borderRadius: 8, fontFamily: "'Space Grotesk',sans-serif" }}>
+            Get started
+          </Link>
         </div>
       </nav>
 
       {/* Hero */}
       <main style={{ position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '80px 24px 60px', textAlign: 'center' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.15)', borderRadius: 100, padding: '5px 14px', fontSize: 12, color: '#b47fea', marginBottom: 40, fontWeight: 500, letterSpacing: '0.02em' }}>
-          <IconSparkles size={12} /> your bio, your way
+
+        {/* Pill badge */}
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.2)', borderRadius: 100, padding: '5px 14px', fontSize: 12, color: '#c084fc', marginBottom: 36, fontWeight: 500, letterSpacing: '0.03em', fontFamily: "'Space Grotesk',sans-serif" }}>
+          <IconSparkles size={11} color="#c084fc" /> your bio. your vibe.
         </div>
 
-        <h1 style={{ fontFamily: "'Space Grotesk', sand-serif", fontSize: 'clamp(52px, 10vw, 104px)', lineHeight: 0.95, letterSpacing: '-3px', marginBottom: 28, color: '#f5f0ff', maxWidth: 700 }}>
-          One link.<br />
-          <span style={{ color: '#c084fc'}}>Infinite you.</span>
+        {/* Headline — matches screenshot exactly */}
+        <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 'clamp(56px, 9vw, 96px)', lineHeight: 1, letterSpacing: '-4px', marginBottom: 24, color: '#fff' }}>
+          One link.
+        </h1>
+        <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 'clamp(56px, 9vw, 96px)', lineHeight: 1, letterSpacing: '-4px', marginBottom: 32, background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 50%, #3b82f6 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+          Infinite you.
         </h1>
 
-        <p style={{ fontSize: 16, color: '#555', lineHeight: 1.7, marginBottom: 44, maxWidth: 420 }}>
-          Build a beautiful bio page at <span style={{ color: '#888' }}>oniion.cc/yourname</span> — music, effects, custom fonts, and more.
+        {/* Subtext */}
+        <p style={{ fontSize: 16, color: '#666', lineHeight: 1.7, marginBottom: 40, maxWidth: 460, fontFamily: "'Space Grotesk',sans-serif" }}>
+          Build a stunning bio page at <strong style={{ color: '#999', fontWeight: 600 }}>oniion.cc/yourname</strong>. Custom effects, music, fonts, and more.
         </p>
 
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Link href="/register" className="btn btn-primary" style={{ padding: '12px 28px', fontSize: 14, borderRadius: 12, gap: 8 }}>
-            Create your page <IconArrowRight size={15} />
+        {/* CTA buttons */}
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <Link href="/register" style={{ padding: '13px 32px', fontSize: 15, fontWeight: 700, color: '#fff', background: '#a855f7', border: 'none', borderRadius: 10, fontFamily: "'Space Grotesk',sans-serif", display: 'inline-block' }}>
+            Create your page →
           </Link>
-          <Link href="/login" className="btn btn-ghost" style={{ padding: '12px 24px', fontSize: 14, borderRadius: 12 }}>
+          <Link href="/login" style={{ padding: '13px 28px', fontSize: 15, fontWeight: 600, color: '#fff', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, fontFamily: "'Space Grotesk',sans-serif", display: 'inline-block' }}>
             Sign in
           </Link>
         </div>
 
-        {/* Feature pills */}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginTop: 64, maxWidth: 480 }}>
+        {/* Feature pills with SVG icons */}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', marginTop: 60 }}>
           {features.map(f => (
-            <div key={f.label} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 100, padding: '6px 12px', fontSize: 12, color: '#555' }}>
-              <span style={{ color: '#a855f7' }}>{f.icon}</span>
+            <div key={f.label} style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 100, padding: '8px 14px', fontSize: 13, color: '#666', fontFamily: "'Space Grotesk',sans-serif", fontWeight: 500 }}>
+              <span style={{ color: '#a855f7', display: 'flex', alignItems: 'center' }}>{f.icon}</span>
               {f.label}
             </div>
           ))}
