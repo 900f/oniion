@@ -154,7 +154,7 @@ function AudioUpload({label,value,onChange}:{label:string;value:string;onChange:
         </button>
         <input ref={ref} type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a" style={{display:'none'}} onChange={async e=>{
           const f=e.target.files?.[0];if(!f)return;
-          if(f.size>10*1024*1024){setErr('Max 10MB');return;}
+          if(f.size > 8 * 1024 * 1024){setErr('Max 8MB');return;}
           setUp(true);setErr('');await startUpload([f]);
         }}/>
       </div>
