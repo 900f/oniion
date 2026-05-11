@@ -164,6 +164,23 @@ export default function Dashboard() {
     onUploadError:(e)=>{setFontError(e.message);setFontUploading(false);},
   });
 
+  useEffect(() => {
+  if (sessionStorage.getItem('heartbeat_dashboard')) return;
+
+  sessionStorage.setItem('heartbeat_dashboard', 'true');
+
+  fetch('/api/heartbeat', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      path: window.location.pathname,
+    }),
+  }).catch(console.error);
+}, []);
+
+
   useEffect(()=>{
     fetch('/api/auth/session').then(r=>r.json()).then(d=>{
       if(!d.user){router.push('/login');return;}
