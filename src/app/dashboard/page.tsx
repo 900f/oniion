@@ -478,7 +478,7 @@ export default function Dashboard() {
               </button>
             )}
           </Card>
-        </div>
+        </div>}
 
         {/* ── LINKS ── */}
         {tab==='links'&&<div style={{display:'flex',flexDirection:'column',gap:14}}>
