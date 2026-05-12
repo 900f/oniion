@@ -2,8 +2,6 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { initDB } from '@/lib/db';
 
-// Call GET /api/migrate once after deploying to add new columns to existing DB
-// Protected by a secret key to prevent abuse
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const secret = searchParams.get('secret');
@@ -18,3 +16,5 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }
+
+

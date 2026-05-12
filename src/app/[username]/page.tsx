@@ -149,6 +149,20 @@ export default function ProfilePage() {
     if (cardRef.current) cardRef.current.style.transform = 'perspective(900px) rotateX(0deg) rotateY(0deg) scale(1)';
   }, []);
 
+  useEffect(() => {
+    if (!data) return;
+
+    fetch('/api/heartbeat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        username: data.username,
+      }),
+    }).catch(() => {});
+  }, [data]);
+
   // Particle canvas
   useEffect(() => {
     if (!data) return;
