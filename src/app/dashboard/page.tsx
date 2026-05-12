@@ -460,10 +460,16 @@ export default function Dashboard() {
             <Field label="Type"><CustomSelect value={profile.cursor_effect} onChange={v=>set('cursor_effect',v)} options={CURSOR_EFFECTS}/></Field>
             {profile.cursor_effect==='trail'&&(
               <Field label="Trail Style">
-                <CustomSelect value={profile.cursor_trail_style||'dot'} onChange={v=>set('cursor_trail_style',v)} options={TRAIL_STYLES}/>
+                <CustomSelect
+                  value={profile.cursor_trail_style||'dot'}
+                  onChange={v=>set('cursor_trail_style',v)}
+                  options={TRAIL_STYLES}
+                />
               </Field>
             )}
-          <Card title="Custom Cursor Image" icon={<IconMousePointer size={12}/>}>
+            </Card>
+
+            <Card title="Custom Cursor Image" icon={<IconMousePointer size={12}/>}>
             <p style={{fontSize:12,color:'#444',marginBottom:8}}>Upload a .png or .gif to use as a custom cursor. Overrides the cursor effect above. Recommended: 32×32px.</p>
             <ImgUpload label="Cursor image (PNG or GIF, max 8MB)" value={profile.custom_cursor_url} onChange={v=>set('custom_cursor_url',v)}/>
             {profile.custom_cursor_url&&(
@@ -472,7 +478,7 @@ export default function Dashboard() {
               </button>
             )}
           </Card>
-        </div>}
+        </div>
 
         {/* ── LINKS ── */}
         {tab==='links'&&<div style={{display:'flex',flexDirection:'column',gap:14}}>
