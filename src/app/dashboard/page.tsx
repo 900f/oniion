@@ -154,7 +154,7 @@ function AudioUpload({label,value,onChange}:{label:string;value:string;onChange:
         </button>
         <input ref={ref} type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a" style={{display:'none'}} onChange={async e=>{
           const f=e.target.files?.[0];if(!f)return;
-          if(f.size>10*1024*1024){setErr('Max 10MB');return;}
+          if(f.size>8*1024*1024){setErr('Max 8MB');return;}
           setUp(true);setErr('');await startUpload([f]);
         }}/>
       </div>
@@ -175,6 +175,8 @@ export default function Dashboard() {
   const [fontUploading,setFontUploading]=useState(false);
   const [fontError,setFontError]=useState('');
   const fontRef=useRef<HTMLInputElement>(null);
+  const [cursorUploading, setCursorUploading] = useState(false);
+  const cursorInputRef = useRef<HTMLInputElement>(null);
   // Account tab state
   const [curPwd,setCurPwd]=useState('');
   const [newUser,setNewUser]=useState('');
@@ -193,6 +195,73 @@ export default function Dashboard() {
     },
     onUploadError:(e)=>{setFontError(e.message);setFontUploading(false);},
   });
+
+
+    const {startUpload:uploadCursor}=useUploadThing('cursorUploader',{
+    onClientUploadComplete:(res)=>{
+      if(res?.[0]){const f=res[0];const url=(f as {ufsUrl?:string;url?:string}).ufsUrl||f.url||'';set('custom_cursor_url',url);}
+      setCursorUploading(false);
+    },
+    onUploadError:(e)=>{console.error('Upload error:',e);setCursorUploading(false);},
+  });
+
+  const resizeAndUploadCursor = async (file: File) => {
+    return new Promise<void>((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 32;
+        canvas.height = 32;
+        const ctx = canvas.getContext('2d');
+        
+        ctx?.drawImage(img, 0, 0, 32, 32);
+        
+        canvas.toBlob(async (blob) => {
+          if (blob) {
+            const resizedFile = new File([blob], 'cursor.png', { type: 'image/png' });
+            await uploadCursor([resizedFile]);
+            resolve();
+          } else {
+            reject('Failed to resize');
+          }
+          URL.revokeObjectURL(url);
+        }, 'image/png');
+      };
+      
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject('Failed to load image');
+      };
+      
+      img.src = url;
+    });
+  };
+
+  const handleCursorUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file (PNG, GIF, etc.)');
+      return;
+    }
+    
+    if (file.size > 4 * 1024 * 1024) {
+      alert('Cursor image must be less than 4MB');
+      return;
+    }
+    
+    setCursorUploading(true);
+    try {
+      await resizeAndUploadCursor(file);
+    } catch (err) {
+      console.error('Resize/upload failed:', err);
+      alert('Failed to process cursor image');
+      setCursorUploading(false);
+    }
+  };
 
   useEffect(()=>{
     fetch('/api/auth/session').then(r=>r.json()).then(d=>{
@@ -470,14 +539,51 @@ export default function Dashboard() {
             </Card>
 
             <Card title="Custom Cursor Image" icon={<IconMousePointer size={12}/>}>
-            <p style={{fontSize:12,color:'#444',marginBottom:8}}>Upload a .png or .gif to use as a custom cursor. Overrides the cursor effect above. Recommended: 32×32px.</p>
-            <ImgUpload label="Cursor image (PNG or GIF, max 8MB)" value={profile.custom_cursor_url} onChange={v=>set('custom_cursor_url',v)}/>
-            {profile.custom_cursor_url&&(
-              <button onClick={()=>set('custom_cursor_url','')} style={{background:'rgba(239,68,68,0.08)',border:'1px solid rgba(239,68,68,0.18)',color:'#f87171',borderRadius:7,padding:'5px 10px',cursor:'pointer',fontFamily:'inherit',fontSize:12,alignSelf:'flex-start',marginTop:4}}>
-                Remove cursor image
-              </button>
-            )}
-          </Card>
+              <p style={{fontSize:12,color:'#444',marginBottom:8}}>
+                Upload a .png or .gif to use as a custom cursor. Overrides the cursor effect above. 
+                <strong style={{color:'#a855f7'}}> Automatically resized to 32×32px (Windows default).</strong>
+              </p>
+              
+              {profile.custom_cursor_url ? (
+                <div style={{display:'flex',alignItems:'center',gap:12,background:'rgba(255,255,255,0.03)',borderRadius:8,padding:'8px 12px'}}>
+                  <img src={profile.custom_cursor_url} alt="cursor preview" style={{width:32,height:32,imageRendering:'pixelated',border:'1px solid rgba(255,255,255,0.1)',borderRadius:4}}/>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:12,color:'#888'}}>Custom cursor active</div>
+                    <div style={{fontSize:10,color:'#555'}}>32×32px</div>
+                  </div>
+                  <button 
+                    onClick={() => set('custom_cursor_url','')} 
+                    style={{background:'rgba(239,68,68,0.08)',border:'1px solid rgba(239,68,68,0.18)',color:'#f87171',borderRadius:7,padding:'5px 10px',cursor:'pointer',fontSize:12}}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <input 
+                    ref={cursorInputRef}
+                    type="file" 
+                    accept="image/png,image/gif,image/jpeg,image/jpg"
+                    style={{display:'none'}}
+                    onChange={handleCursorUpload}
+                    disabled={cursorUploading}
+                  />
+                  <button 
+                    onClick={() => cursorInputRef.current?.click()} 
+                    className="btn btn-ghost" 
+                    style={{width:'100%',padding:'12px',gap:8}}
+                    disabled={cursorUploading}
+                  >
+                    <IconUpload size={14}/>
+                    {cursorUploading ? 'Resizing & uploading...' : 'Upload cursor image (auto-resize to 32×32)'}
+                  </button>
+                </div>
+              )}
+              
+              <p style={{fontSize:11,color:'#333',marginTop:8}}>
+                💡 Tip: Any image you upload will be automatically resized to 32×32 pixels, the standard Windows cursor size.
+              </p>
+            </Card>
         </div>}
 
         {/* ── LINKS ── */}

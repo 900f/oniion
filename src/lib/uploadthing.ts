@@ -27,11 +27,22 @@ export const ourFileRouter = {
     })),
 
   audioUploader: f({
-    audio: { maxFileSize: "10MB", maxFileCount: 1 },
+    audio: { maxFileSize: "8MB", maxFileCount: 1 },
   })
     .middleware(auth)
     .onUploadComplete(async ({ metadata, file }) => ({
       uploadedBy: metadata.userId, url: file.ufsUrl, name: file.name,
+    })),
+  cursorUploader: f({ 
+    image: { maxFileSize: "4MB", maxFileCount: 1 },
+    "image/png": { maxFileSize: "4MB", maxFileCount: 1 },
+    "image/gif": { maxFileSize: "4MB", maxFileCount: 1 },
+  })
+    .middleware(auth)
+    .onUploadComplete(async ({ metadata, file }) => ({
+      uploadedBy: metadata.userId, 
+      url: file.ufsUrl, 
+      name: file.name,
     })),
 } satisfies FileRouter;
 
