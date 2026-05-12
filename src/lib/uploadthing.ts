@@ -27,7 +27,7 @@ export const ourFileRouter = {
     })),
 
   audioUploader: f({
-    audio: { maxFileSize: "8MB", maxFileCount: 1 },
+    audio: { maxFileSize: "10MB", maxFileCount: 1 },
   })
     .middleware(auth)
     .onUploadComplete(async ({ metadata, file }) => ({

@@ -65,7 +65,7 @@ type Profile = {
   custom_font_url:string; custom_font_name:string;
   avatar_orbit:boolean; card_led_border:boolean; card_tilt:boolean;
   show_views:boolean; show_id:boolean; show_music:boolean;
-  name_font:string; glass_opacity:number; glass_tint:string; show_verified_badge:boolean; verified?:boolean;
+  name_font:string; glass_opacity:number; glass_tint:string; show_verified_badge:boolean; verified?:boolean; custom_cursor_url:string;
   total_views?:number; display_id?:number;
 };
 const DEF: Profile = {
@@ -80,7 +80,7 @@ const DEF: Profile = {
   card_style:'glass', custom_font_url:'', custom_font_name:'',
   avatar_orbit:true, card_led_border:true, card_tilt:true,
   show_views:true, show_id:true, show_music:true,
-  name_font:'orbitron', glass_opacity:0.72, glass_tint:'auto', show_verified_badge:true,
+  name_font:'orbitron', glass_opacity:0.72, glass_tint:'auto', show_verified_badge:true, custom_cursor_url:'',
 };
 
 const TABS = [
@@ -154,7 +154,7 @@ function AudioUpload({label,value,onChange}:{label:string;value:string;onChange:
         </button>
         <input ref={ref} type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a" style={{display:'none'}} onChange={async e=>{
           const f=e.target.files?.[0];if(!f)return;
-          if(f.size > 8 * 1024 * 1024){setErr('Max 8MB');return;}
+          if(f.size>10*1024*1024){setErr('Max 10MB');return;}
           setUp(true);setErr('');await startUpload([f]);
         }}/>
       </div>
@@ -211,6 +211,7 @@ export default function Dashboard() {
           glass_tint:d2.profile.glass_tint||'auto',
           cursor_trail_style:d2.profile.cursor_trail_style||'dot',
           show_verified_badge:d2.profile.show_verified_badge??true,
+          custom_cursor_url:d2.profile.custom_cursor_url||'',
           verified:d2.profile.verified??false,
         });
         if(d2.links)setLinks(d2.links.map((l:LinkItem)=>({...l,link_type:l.link_type||'url'})));
@@ -288,7 +289,7 @@ export default function Dashboard() {
         </div>
 
         {/* Tabs */}
-        <div style={{display:'flex',gap:2,marginBottom:20,overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
+        <div style={{display:'flex',gap:2,marginBottom:20,overflowX:'auto',WebkitOverflowScrolling:'touch' as unknown as string}}>
           {TABS.map(t=>(
             <button key={t.key} onClick={()=>setTab(t.key)} style={{
               background:tab===t.key?'rgba(168,85,247,0.1)':'none',
@@ -461,6 +462,14 @@ export default function Dashboard() {
               <Field label="Trail Style">
                 <CustomSelect value={profile.cursor_trail_style||'dot'} onChange={v=>set('cursor_trail_style',v)} options={TRAIL_STYLES}/>
               </Field>
+            )}
+          <Card title="Custom Cursor Image" icon={<IconMousePointer size={12}/>}>
+            <p style={{fontSize:12,color:'#444',marginBottom:8}}>Upload a .png or .gif to use as a custom cursor. Overrides the cursor effect above. Recommended: 32×32px.</p>
+            <ImgUpload label="Cursor image (PNG or GIF, max 8MB)" value={profile.custom_cursor_url} onChange={v=>set('custom_cursor_url',v)}/>
+            {profile.custom_cursor_url&&(
+              <button onClick={()=>set('custom_cursor_url','')} style={{background:'rgba(239,68,68,0.08)',border:'1px solid rgba(239,68,68,0.18)',color:'#f87171',borderRadius:7,padding:'5px 10px',cursor:'pointer',fontFamily:'inherit',fontSize:12,alignSelf:'flex-start',marginTop:4}}>
+                Remove cursor image
+              </button>
             )}
           </Card>
         </div>}

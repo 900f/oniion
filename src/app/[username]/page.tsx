@@ -46,7 +46,7 @@ type P = {
   custom_font_url:string; custom_font_name:string;
   avatar_orbit:unknown; card_led_border:unknown; card_tilt:unknown;
   show_views:unknown; show_id:unknown; show_music:unknown;
-  name_font:string; glass_opacity:number; glass_tint:string; show_verified_badge:unknown;
+  name_font:string; glass_opacity:number; glass_tint:string; show_verified_badge:unknown; custom_cursor_url:string;
 };
 type Data = {
   username:string; userId:string; views:number; displayId:number; verified:boolean;
@@ -368,11 +368,11 @@ export default function ProfilePage() {
         .pl:hover{transform:translateY(-1px);}
         .pl::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:linear-gradient(0deg,transparent,${ac}22,transparent);transform-origin:bottom right;animation:shine 3s linear infinite;opacity:0;transition:opacity .4s;}
         .pl:hover::before{opacity:1;}
-        /* cursor always visible */
-        *{cursor:auto!important;}
-        a,button,[role=button],.pl{cursor:pointer!important;}
-        input:not([type=submit]):not([type=button]),textarea{cursor:text!important;}
-        input[type=range]{cursor:grab!important;}
+        /* cursor — custom image if set, otherwise always visible */
+        ${p.custom_cursor_url
+          ? `*{cursor:url('${p.custom_cursor_url}') 8 8,auto!important;} a,button,[role=button],.pl{cursor:url('${p.custom_cursor_url}') 8 8,pointer!important;}`
+          : `*{cursor:auto!important;} a,button,[role=button],.pl{cursor:pointer!important;} input:not([type=submit]):not([type=button]),textarea{cursor:text!important;} input[type=range]{cursor:grab!important;}`
+        }
       `}</style>
 
       {(p.background_type==='particles'||p.page_effect==='particles') && (
@@ -454,42 +454,41 @@ export default function ProfilePage() {
                   </p>
                 )}
 
-                {/* Links */}
-                {data.links.length>0&&(
-                  <div style={{display:'flex',flexDirection:'column',gap:10,marginBottom:20}}>
-                    {data.links.map(lk => {
-                      if (lk.link_type==='crypto') {
-                        const meta = CRYPTO_META[lk.icon] || { name: lk.icon?.toUpperCase(), color: ac };
-                        return (
-                          <div key={lk.id} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8,padding:'14px 16px',borderRadius:12,background:`${meta.color}0d`,border:`1px solid ${meta.color}22`}}>
-                            {/* Title row */}
-                            <div style={{display:'flex',alignItems:'center',gap:8,width:'100%',justifyContent:isCenter?'center':'flex-start'}}>
-                              <span style={{fontSize:12,color:`${tx}55`,fontFamily:"'Space Mono',monospace"}}>{meta.name}{lk.title?` · ${lk.title}`:''}</span>
-                            </div>
-                            {/* Address */}
-                            <div style={{fontSize:11,color:`${tx}66`,fontFamily:"'Space Mono',monospace",wordBreak:'break-all',textAlign:'center',maxWidth:'100%',padding:'0 4px'}}>
-                              {lk.url}
-                            </div>
-                            {/* Coin icon button — click to copy */}
-                            <CryptoCopyBtn coin={lk.icon} address={lk.url} accent={ac}/>
-                          </div>
-                        );
-                      }
-                      // Social/URL link
-                      const key = lk.icon || detectSocialIcon(lk.url);
-                      const Icon = SocialIcons[key] || SocialIcons['link'];
-                      return (
-                        <a key={lk.id} href={fixUrl(lk.url)} target="_blank" rel="noopener noreferrer" className="pl" style={{background:`${ac}0d`,border:`1px solid ${ac}22`,color:tx}}>
-                          <span style={{flexShrink:0,display:'flex',alignItems:'center',filter:`drop-shadow(0 0 5px ${ac}66)`}}>
-                            <Icon size={18} color={tx}/>
-                          </span>
-                          <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{lk.title}</span>
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={`${tx}33`} strokeWidth="2" strokeLinecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                        </a>
-                      );
-                    })}
-                  </div>
-                )}
+                {/* Links — social/url first, then crypto icons row at bottom */}
+                {data.links.length>0&&(()=>{
+                  const socialLinks = data.links.filter(lk => lk.link_type !== 'crypto');
+                  const cryptoLinks = data.links.filter(lk => lk.link_type === 'crypto');
+                  return (
+                    <div style={{marginBottom:20}}>
+                      {/* Social / URL links */}
+                      {socialLinks.length>0&&(
+                        <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:cryptoLinks.length>0?12:0}}>
+                          {socialLinks.map(lk => {
+                            const key = lk.icon || detectSocialIcon(lk.url);
+                            const Icon = SocialIcons[key] || SocialIcons['link'];
+                            return (
+                              <a key={lk.id} href={fixUrl(lk.url)} target="_blank" rel="noopener noreferrer" className="pl" style={{background:`${ac}0d`,border:`1px solid ${ac}22`,color:tx}}>
+                                <span style={{flexShrink:0,display:'flex',alignItems:'center',filter:`drop-shadow(0 0 5px ${ac}66)`}}>
+                                  <Icon size={18} color={tx}/>
+                                </span>
+                                <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{lk.title}</span>
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={`${tx}33`} strokeWidth="2" strokeLinecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                              </a>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {/* Crypto icons — centered row, always at bottom */}
+                      {cryptoLinks.length>0&&(
+                        <div style={{display:'flex',gap:10,justifyContent:'center',flexWrap:'wrap',paddingTop:cryptoLinks.length>0&&socialLinks.length>0?4:0}}>
+                          {cryptoLinks.map(lk => (
+                            <CryptoCopyBtn key={lk.id} coin={lk.icon} address={lk.url} accent={ac}/>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Footer */}
                 {(doViews||doId)&&(

@@ -77,6 +77,7 @@ export async function PUT(req: NextRequest) {
       glass_opacity     = ${b.glass_opacity ?? 0.72},
       glass_tint        = ${b.glass_tint ?? 'auto'},
       cursor_trail_style = ${b.cursor_trail_style ?? 'dot'},
+      custom_cursor_url   = ${b.custom_cursor_url ?? null},
       show_verified_badge = ${bool(b.show_verified_badge, true)},
       updated_at        = NOW()
     WHERE user_id = ${session.userId}`;

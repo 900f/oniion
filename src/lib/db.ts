@@ -63,6 +63,7 @@ export async function initDB() {
     glass_opacity REAL DEFAULT 0.72,
     glass_tint TEXT DEFAULT 'auto',
     cursor_trail_style VARCHAR(32) DEFAULT 'dot',
+    custom_cursor_url TEXT,
     updated_at TIMESTAMPTZ DEFAULT NOW()
   )`;
 
@@ -106,6 +107,7 @@ export async function initDB() {
     db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS show_verified_badge BOOLEAN DEFAULT true`.catch(()=>{}),
     db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS glass_tint TEXT DEFAULT 'auto'`.catch(()=>{}),
     db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS cursor_trail_style VARCHAR(32) DEFAULT 'dot'`.catch(()=>{}),
+    db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS custom_cursor_url TEXT`.catch(()=>{}),
   ];
   await Promise.all(addCols);
 
