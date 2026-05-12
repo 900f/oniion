@@ -640,7 +640,7 @@ export default function Dashboard() {
 
         {/* ── MUSIC ── */}
         {tab==='music'&&<Card title="Music Player" icon={<IconMusic size={12}/>}>
-          <p style={{color:'#444',fontSize:12,marginBottom:10}}>Upload an audio file (max 10MB) or paste a direct URL / YouTube link. Autoplays when profile loads.</p>
+          <p style={{color:'#444',fontSize:12,marginBottom:10}}>Upload an audio file (max 8MB) or paste a direct URL / YouTube link. Autoplays when profile loads.</p>
           <AudioUpload label="Audio File / URL / YouTube" value={profile.song_url} onChange={v=>set('song_url',v)}/>
           <Field label="Song Title"><input className="input" value={profile.song_title} onChange={e=>set('song_title',e.target.value)} placeholder="Song name" maxLength={100}/></Field>
           <Field label="Artist"><input className="input" value={profile.song_artist} onChange={e=>set('song_artist',e.target.value)} placeholder="Artist name" maxLength={100}/></Field>
