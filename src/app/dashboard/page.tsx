@@ -540,7 +540,7 @@ export default function Dashboard() {
 
             <Card title="Custom Cursor Image" icon={<IconMousePointer size={12}/>}>
               <p style={{fontSize:12,color:'#444',marginBottom:8}}>
-                Upload a .png or .gif to use as a custom cursor. Overrides the cursor effect above. 
+                Upload a .png or .gif to use as a custom cursor. 
                 <strong style={{color:'#a855f7'}}> Automatically resized to 32×32px (Windows default).</strong>
               </p>
               
