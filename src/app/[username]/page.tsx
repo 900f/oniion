@@ -163,7 +163,6 @@ export default function ProfilePage() {
     }).catch(() => {});
   }, [data]);
 
-  // Particle canvas
   useEffect(() => {
     if (!data) return;
     const p = data.profile;

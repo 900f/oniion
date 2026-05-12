@@ -3,13 +3,9 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const allowedPaths = ['/', '/dashboard'];
-
-    if (!allowedPaths.includes(body.path)) {
-      return NextResponse.json({ ignored: true });
-    }
 
     const forwarded = req.headers.get('x-forwarded-for');
+
     const ip =
       forwarded?.split(',')[0] ||
       req.headers.get('x-real-ip') ||
@@ -25,17 +21,17 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         embeds: [
           {
-            title: '🌐 New Oniion.cc Visitor',
+            title: '👁️ Profile View',
             color: 0xa855f7,
             fields: [
               {
-                name: 'IP',
-                value: `\`${ip}\``,
+                name: 'Username',
+                value: body.username || 'Unknown',
                 inline: true,
               },
               {
-                name: 'Path',
-                value: body.path,
+                name: 'IP',
+                value: `\`${ip}\``,
                 inline: true,
               },
               {
