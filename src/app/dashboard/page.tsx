@@ -329,7 +329,7 @@ export default function Dashboard() {
         </div>
 
         {/* Tabs */}
-        <div style={{display:'flex',gap:2,marginBottom:20,overflowX:'auto',WebkitOverflowScrolling:'touch' as unknown as string}}>
+        <div style={{display:'flex',gap:2,marginBottom:20,overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
           {TABS.map(t=>(
             <button key={t.key} onClick={()=>setTab(t.key)} style={{
               background:tab===t.key?'rgba(168,85,247,0.1)':'none',
