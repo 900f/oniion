@@ -4,8 +4,9 @@ import { initDB } from '@/lib/db';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const secret = searchParams.get('secret');
-  if (secret !== process.env.JWT_SECRET) {
+  const secret = searchParams.get('secret')?.trim();
+  const expected = process.env.JWT_SECRET?.trim();
+  if (!secret || !expected || secret !== expected) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   try {
@@ -16,5 +17,3 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }
-
-

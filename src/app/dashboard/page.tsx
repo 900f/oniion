@@ -154,7 +154,7 @@ function AudioUpload({label,value,onChange}:{label:string;value:string;onChange:
         </button>
         <input ref={ref} type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a" style={{display:'none'}} onChange={async e=>{
           const f=e.target.files?.[0];if(!f)return;
-          if(f.size>8*1024*1024){setErr('Max 8MB');return;}
+          if(f.size>10*1024*1024){setErr('Max 10MB');return;}
           setUp(true);setErr('');await startUpload([f]);
         }}/>
       </div>
@@ -175,8 +175,6 @@ export default function Dashboard() {
   const [fontUploading,setFontUploading]=useState(false);
   const [fontError,setFontError]=useState('');
   const fontRef=useRef<HTMLInputElement>(null);
-  const [cursorUploading, setCursorUploading] = useState(false);
-  const cursorInputRef = useRef<HTMLInputElement>(null);
   // Account tab state
   const [curPwd,setCurPwd]=useState('');
   const [newUser,setNewUser]=useState('');
@@ -184,6 +182,10 @@ export default function Dashboard() {
   const [acctMsg,setAcctMsg]=useState('');
   const [acctErr,setAcctErr]=useState('');
   const [acctLoading,setAcctLoading]=useState(false);
+  const [importMsg,setImportMsg]=useState('');
+  const [importErr,setImportErr]=useState('');
+  const [importing,setImporting]=useState(false);
+  const importRef=useRef<HTMLInputElement>(null);
 
   const set=(k:keyof Profile,v:unknown)=>setProfile(p=>({...p,[k]:v}));
 
@@ -195,73 +197,6 @@ export default function Dashboard() {
     },
     onUploadError:(e)=>{setFontError(e.message);setFontUploading(false);},
   });
-
-
-    const {startUpload:uploadCursor}=useUploadThing('cursorUploader',{
-    onClientUploadComplete:(res)=>{
-      if(res?.[0]){const f=res[0];const url=(f as {ufsUrl?:string;url?:string}).ufsUrl||f.url||'';set('custom_cursor_url',url);}
-      setCursorUploading(false);
-    },
-    onUploadError:(e)=>{console.error('Upload error:',e);setCursorUploading(false);},
-  });
-
-  const resizeAndUploadCursor = async (file: File) => {
-    return new Promise<void>((resolve, reject) => {
-      const img = new Image();
-      const url = URL.createObjectURL(file);
-      
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = 32;
-        canvas.height = 32;
-        const ctx = canvas.getContext('2d');
-        
-        ctx?.drawImage(img, 0, 0, 32, 32);
-        
-        canvas.toBlob(async (blob) => {
-          if (blob) {
-            const resizedFile = new File([blob], 'cursor.png', { type: 'image/png' });
-            await uploadCursor([resizedFile]);
-            resolve();
-          } else {
-            reject('Failed to resize');
-          }
-          URL.revokeObjectURL(url);
-        }, 'image/png');
-      };
-      
-      img.onerror = () => {
-        URL.revokeObjectURL(url);
-        reject('Failed to load image');
-      };
-      
-      img.src = url;
-    });
-  };
-
-  const handleCursorUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    if (!file.type.startsWith('image/')) {
-      alert('Please upload an image file (PNG, GIF, etc.)');
-      return;
-    }
-    
-    if (file.size > 4 * 1024 * 1024) {
-      alert('Cursor image must be less than 4MB');
-      return;
-    }
-    
-    setCursorUploading(true);
-    try {
-      await resizeAndUploadCursor(file);
-    } catch (err) {
-      console.error('Resize/upload failed:', err);
-      alert('Failed to process cursor image');
-      setCursorUploading(false);
-    }
-  };
 
   useEffect(()=>{
     fetch('/api/auth/session').then(r=>r.json()).then(d=>{
@@ -324,6 +259,42 @@ export default function Dashboard() {
     setAcctLoading(false);
   };
 
+  const exportConfig = async () => {
+    const res = await fetch('/api/config');
+    if (!res.ok) { alert('Export failed'); return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `oniion-config-${user?.username||'profile'}.json`;
+    a.click(); URL.revokeObjectURL(url);
+  };
+
+  const importConfig = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    if (!file.name.endsWith('.json')) { setImportErr('Must be a .json file'); return; }
+    if (file.size > 500*1024) { setImportErr('File too large (max 500KB)'); return; }
+    setImporting(true); setImportErr(''); setImportMsg('');
+    try {
+      const text = await file.text();
+      const json = JSON.parse(text);
+      const res = await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(json),
+      });
+      const data = await res.json();
+      if (!res.ok) { setImportErr(data.error || 'Import failed'); }
+      else {
+        setImportMsg('Config imported! Reloading…');
+        setTimeout(() => window.location.reload(), 1200);
+      }
+    } catch(err) {
+      setImportErr('Invalid JSON file: ' + String(err));
+    }
+    setImporting(false);
+    if (importRef.current) importRef.current.value = '';
+  };
+
   if(loading)return<div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',color:'#333',fontSize:13}}>Loading…</div>;
 
   const usingCustomFont=!!(profile.custom_font_url&&profile.font_family==='__custom__');
@@ -358,7 +329,7 @@ export default function Dashboard() {
         </div>
 
         {/* Tabs */}
-        <div style={{display:'flex',gap:2,marginBottom:20,overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
+        <div style={{display:'flex',gap:2,marginBottom:20,overflowX:'auto',WebkitOverflowScrolling:'touch' as unknown as string}}>
           {TABS.map(t=>(
             <button key={t.key} onClick={()=>setTab(t.key)} style={{
               background:tab===t.key?'rgba(168,85,247,0.1)':'none',
@@ -529,61 +500,19 @@ export default function Dashboard() {
             <Field label="Type"><CustomSelect value={profile.cursor_effect} onChange={v=>set('cursor_effect',v)} options={CURSOR_EFFECTS}/></Field>
             {profile.cursor_effect==='trail'&&(
               <Field label="Trail Style">
-                <CustomSelect
-                  value={profile.cursor_trail_style||'dot'}
-                  onChange={v=>set('cursor_trail_style',v)}
-                  options={TRAIL_STYLES}
-                />
+                <CustomSelect value={profile.cursor_trail_style||'dot'} onChange={v=>set('cursor_trail_style',v)} options={TRAIL_STYLES}/>
               </Field>
             )}
-            </Card>
-
-            <Card title="Custom Cursor Image" icon={<IconMousePointer size={12}/>}>
-              <p style={{fontSize:12,color:'#444',marginBottom:8}}>
-                Upload a .png or .gif to use as a custom cursor. 
-                <strong style={{color:'#a855f7'}}> Automatically resized to 32×32px (Windows default).</strong>
-              </p>
-              
-              {profile.custom_cursor_url ? (
-                <div style={{display:'flex',alignItems:'center',gap:12,background:'rgba(255,255,255,0.03)',borderRadius:8,padding:'8px 12px'}}>
-                  <img src={profile.custom_cursor_url} alt="cursor preview" style={{width:32,height:32,imageRendering:'pixelated',border:'1px solid rgba(255,255,255,0.1)',borderRadius:4}}/>
-                  <div style={{flex:1}}>
-                    <div style={{fontSize:12,color:'#888'}}>Custom cursor active</div>
-                    <div style={{fontSize:10,color:'#555'}}>32×32px</div>
-                  </div>
-                  <button 
-                    onClick={() => set('custom_cursor_url','')} 
-                    style={{background:'rgba(239,68,68,0.08)',border:'1px solid rgba(239,68,68,0.18)',color:'#f87171',borderRadius:7,padding:'5px 10px',cursor:'pointer',fontSize:12}}
-                  >
-                    Remove
-                  </button>
-                </div>
-              ) : (
-                <div>
-                  <input 
-                    ref={cursorInputRef}
-                    type="file" 
-                    accept="image/png,image/gif,image/jpeg,image/jpg"
-                    style={{display:'none'}}
-                    onChange={handleCursorUpload}
-                    disabled={cursorUploading}
-                  />
-                  <button 
-                    onClick={() => cursorInputRef.current?.click()} 
-                    className="btn btn-ghost" 
-                    style={{width:'100%',padding:'12px',gap:8}}
-                    disabled={cursorUploading}
-                  >
-                    <IconUpload size={14}/>
-                    {cursorUploading ? 'Resizing & uploading...' : 'Upload cursor image (auto-resize to 32×32)'}
-                  </button>
-                </div>
-              )}
-              
-              <p style={{fontSize:11,color:'#333',marginTop:8}}>
-                💡 Tip: Any image you upload will be automatically resized to 32×32 pixels, the standard Windows cursor size.
-              </p>
-            </Card>
+          </Card>
+          <Card title="Custom Cursor Image" icon={<IconMousePointer size={12}/>}>
+            <p style={{fontSize:12,color:'#444',marginBottom:8}}>Upload a .png or .gif to use as a custom cursor. Overrides the cursor effect above. Recommended: 32×32px.</p>
+            <ImgUpload label="Cursor image (PNG or GIF, max 8MB)" value={profile.custom_cursor_url} onChange={v=>set('custom_cursor_url',v)}/>
+            {profile.custom_cursor_url&&(
+              <button onClick={()=>set('custom_cursor_url','')} style={{background:'rgba(239,68,68,0.08)',border:'1px solid rgba(239,68,68,0.18)',color:'#f87171',borderRadius:7,padding:'5px 10px',cursor:'pointer',fontFamily:'inherit',fontSize:12,alignSelf:'flex-start',marginTop:4}}>
+                Remove cursor image
+              </button>
+            )}
+          </Card>
         </div>}
 
         {/* ── LINKS ── */}
@@ -640,7 +569,7 @@ export default function Dashboard() {
 
         {/* ── MUSIC ── */}
         {tab==='music'&&<Card title="Music Player" icon={<IconMusic size={12}/>}>
-          <p style={{color:'#444',fontSize:12,marginBottom:10}}>Upload an audio file (max 8MB) or paste a direct URL / YouTube link. Autoplays when profile loads.</p>
+          <p style={{color:'#444',fontSize:12,marginBottom:10}}>Upload an audio file (max 10MB) or paste a direct URL / YouTube link. Autoplays when profile loads.</p>
           <AudioUpload label="Audio File / URL / YouTube" value={profile.song_url} onChange={v=>set('song_url',v)}/>
           <Field label="Song Title"><input className="input" value={profile.song_title} onChange={e=>set('song_title',e.target.value)} placeholder="Song name" maxLength={100}/></Field>
           <Field label="Artist"><input className="input" value={profile.song_artist} onChange={e=>set('song_artist',e.target.value)} placeholder="Artist name" maxLength={100}/></Field>
@@ -696,6 +625,26 @@ export default function Dashboard() {
             <button onClick={changePassword} className="btn btn-primary" disabled={acctLoading} style={{alignSelf:'flex-start',gap:6}}>
               <IconCheck size={13}/>{acctLoading?'Saving…':'Change password'}
             </button>
+          </Card>
+          <Card title="Config — Import &amp; Export" icon={<IconSettings size={12}/>}>
+            <p style={{fontSize:12,color:'#444',marginBottom:10}}>
+              Export your profile settings as a JSON file and re-import them anytime.
+              Verification status and view counts are never exported.
+            </p>
+            <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+              <button onClick={exportConfig} className="btn btn-ghost" style={{gap:6,fontSize:13}}>
+                <IconExternalLink size={13}/>Export config
+              </button>
+              <button onClick={()=>importRef.current?.click()} className="btn btn-ghost" style={{gap:6,fontSize:13}} disabled={importing}>
+                <IconUpload size={13}/>{importing?'Importing…':'Import config'}
+              </button>
+              <input ref={importRef} type="file" accept=".json" style={{display:'none'}} onChange={importConfig}/>
+            </div>
+            {importErr&&<div style={{fontSize:12,color:'#f87171',padding:'8px 12px',background:'rgba(239,68,68,0.08)',borderRadius:8,marginTop:8}}>{importErr}</div>}
+            {importMsg&&<div style={{fontSize:12,color:'#4ade80',padding:'8px 12px',background:'rgba(74,222,128,0.08)',borderRadius:8,marginTop:8}}>{importMsg}</div>}
+            <p style={{fontSize:11,color:'#333',marginTop:8}}>
+              Importing will overwrite your current profile settings and links. Links, bio, images, effects, and appearance are all included.
+            </p>
           </Card>
         </div>}
 

@@ -149,20 +149,7 @@ export default function ProfilePage() {
     if (cardRef.current) cardRef.current.style.transform = 'perspective(900px) rotateX(0deg) rotateY(0deg) scale(1)';
   }, []);
 
-  useEffect(() => {
-    if (!data) return;
-
-    fetch('/api/heartbeat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        username: data.username,
-      }),
-    }).catch(() => {});
-  }, [data]);
-
+  // Particle canvas
   useEffect(() => {
     if (!data) return;
     const p = data.profile;
@@ -383,7 +370,7 @@ export default function ProfilePage() {
         .pl:hover::before{opacity:1;}
         /* cursor — custom image if set, otherwise always visible */
         ${p.custom_cursor_url
-          ? `*{cursor:url('${p.custom_cursor_url}') 8 8,auto!important;} a,button,[role=button],.pl{cursor:url('${p.custom_cursor_url}') 8 8,pointer!important;}`
+          ? `*{cursor:url('${p.custom_cursor_url}') 16 16,auto!important;} a,button,[role=button],.pl{cursor:url('${p.custom_cursor_url}') 16 16,pointer!important;}`
           : `*{cursor:auto!important;} a,button,[role=button],.pl{cursor:pointer!important;} input:not([type=submit]):not([type=button]),textarea{cursor:text!important;} input[type=range]{cursor:grab!important;}`
         }
       `}</style>
