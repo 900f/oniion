@@ -6,7 +6,7 @@ import { getSession } from '@/lib/auth';
 // Fields that should NEVER be exported (security/privilege fields)
 const STRIP_FIELDS = [
   'id','user_id','updated_at','total_views','display_id',
-  'verified','show_verified_badge','password_hash',
+  'verified','show_verified_badge','password_hash','bio','display_name','badge_text',
 ];
 
 export async function GET() {
