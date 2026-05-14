@@ -57,14 +57,14 @@ export async function POST(req: NextRequest) {
 
   // Only allow safe fields to be imported — never allow privilege escalation
   const ALLOWED_PROFILE_FIELDS = [
-    'display_name','bio','avatar_url','banner_url','banner_color',
+    'avatar_url','banner_url','banner_color',
     'background_image_url','card_image_url',
     'song_url','song_title','song_artist',
     'background_type','background_value',
     'text_color','accent_color','font_family',
     'font_effect','page_effect','effect_color',
     'layout','card_position','blur_enabled','glow_enabled',
-    'badge_text','badge_color','cursor_effect','cursor_trail_style','card_style',
+    'badge_color','cursor_effect','cursor_trail_style','card_style',
     'custom_font_url','custom_font_name',
     'avatar_orbit','card_led_border','card_tilt',
     'show_views','show_id','show_music',
@@ -84,8 +84,6 @@ export async function POST(req: NextRequest) {
   }
 
   await db`UPDATE profiles SET
-    display_name      = ${str(p.display_name, '')},
-    bio               = ${str(p.bio, '')},
     avatar_url        = ${str(p.avatar_url, '')},
     banner_url        = ${str(p.banner_url, '')},
     banner_color      = ${str(p.banner_color, '#0d0d0d')},
@@ -106,7 +104,6 @@ export async function POST(req: NextRequest) {
     card_position     = ${str(p.card_position, 'top')},
     blur_enabled      = ${bool(p.blur_enabled, false)},
     glow_enabled      = ${bool(p.glow_enabled, false)},
-    badge_text        = ${str(p.badge_text, '')},
     badge_color       = ${str(p.badge_color, '#a855f7')},
     cursor_effect     = ${str(p.cursor_effect, 'none')},
     cursor_trail_style = ${str(p.cursor_trail_style, 'dot')},
