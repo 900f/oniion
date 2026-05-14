@@ -154,7 +154,7 @@ function AudioUpload({label,value,onChange}:{label:string;value:string;onChange:
         </button>
         <input ref={ref} type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a" style={{display:'none'}} onChange={async e=>{
           const f=e.target.files?.[0];if(!f)return;
-          if(f.size>10*1024*1024){setErr('Max 10MB');return;}
+          if(f.size>8*1024*1024){setErr('Max 8MB');return;}
           setUp(true);setErr('');await startUpload([f]);
         }}/>
       </div>
@@ -569,7 +569,7 @@ export default function Dashboard() {
 
         {/* ── MUSIC ── */}
         {tab==='music'&&<Card title="Music Player" icon={<IconMusic size={12}/>}>
-          <p style={{color:'#444',fontSize:12,marginBottom:10}}>Upload an audio file (max 10MB) or paste a direct URL / YouTube link. Autoplays when profile loads.</p>
+          <p style={{color:'#444',fontSize:12,marginBottom:10}}>Upload an audio file (max 8MB) or paste a direct URL / YouTube link. Autoplays when profile loads.</p>
           <AudioUpload label="Audio File / URL / YouTube" value={profile.song_url} onChange={v=>set('song_url',v)}/>
           <Field label="Song Title"><input className="input" value={profile.song_title} onChange={e=>set('song_title',e.target.value)} placeholder="Song name" maxLength={100}/></Field>
           <Field label="Artist"><input className="input" value={profile.song_artist} onChange={e=>set('song_artist',e.target.value)} placeholder="Artist name" maxLength={100}/></Field>
@@ -629,7 +629,6 @@ export default function Dashboard() {
           <Card title="Config — Import &amp; Export" icon={<IconSettings size={12}/>}>
             <p style={{fontSize:12,color:'#444',marginBottom:10}}>
               Export your profile settings as a JSON file and re-import them anytime.
-              Verification status and view counts are never exported.
             </p>
             <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
               <button onClick={exportConfig} className="btn btn-ghost" style={{gap:6,fontSize:13}}>
