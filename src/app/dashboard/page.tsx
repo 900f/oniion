@@ -12,7 +12,7 @@ import {
   IconSave, IconLogOut, IconExternalLink, IconPlus, IconX,
   IconEye, IconUpload, IconFont, IconHash, IconCheck,
   IconImage, IconCamera, IconLayout, IconDroplet, IconType,
-  IconMousePointer, IconWand, IconCrown, IconSettings,
+  IconMousePointer, IconWand, IconCrown, IconSettings, IconGlobe,
 } from '@/components/icons';
 
 const FONTS = ['Space Grotesk','Playfair Display','JetBrains Mono','Bebas Neue','Dancing Script','Orbitron','Cinzel','Permanent Marker'];
@@ -65,7 +65,7 @@ type Profile = {
   custom_font_url:string; custom_font_name:string;
   avatar_orbit:boolean; card_led_border:boolean; card_tilt:boolean;
   show_views:boolean; show_id:boolean; show_music:boolean;
-  name_font:string; glass_opacity:number; glass_tint:string; show_verified_badge:boolean; verified?:boolean; custom_cursor_url:string;
+  name_font:string; glass_opacity:number; glass_tint:string; show_verified_badge:boolean; verified?:boolean; custom_cursor_url:string; listed_in_directory:boolean;
   total_views?:number; display_id?:number;
 };
 const DEF: Profile = {
@@ -80,7 +80,7 @@ const DEF: Profile = {
   card_style:'glass', custom_font_url:'', custom_font_name:'',
   avatar_orbit:true, card_led_border:true, card_tilt:true,
   show_views:true, show_id:true, show_music:true,
-  name_font:'orbitron', glass_opacity:0.72, glass_tint:'auto', show_verified_badge:true, custom_cursor_url:'',
+  name_font:'orbitron', glass_opacity:0.72, glass_tint:'auto', show_verified_badge:true, custom_cursor_url:'', listed_in_directory:false,
 };
 
 const TABS = [
@@ -216,6 +216,7 @@ export default function Dashboard() {
           cursor_trail_style:d2.profile.cursor_trail_style||'dot',
           show_verified_badge:d2.profile.show_verified_badge??true,
           custom_cursor_url:d2.profile.custom_cursor_url||'',
+          listed_in_directory:d2.profile.listed_in_directory??false,
           verified:d2.profile.verified??false,
         });
         if(d2.links)setLinks(d2.links.map((l:LinkItem)=>({...l,link_type:l.link_type||'url'})));
@@ -587,6 +588,26 @@ export default function Dashboard() {
             <Toggle label="Show #ID" desc="Show your unique profile number" checked={profile.show_id} onChange={v=>set('show_id',v)}/>
             <Toggle label="Show music player" desc="Show the music player card" checked={profile.show_music} onChange={v=>set('show_music',v)}/>
           </Card>
+          <Card title="Profile Directory" icon={<IconGlobe size={12}/>}>
+            <Toggle
+              label="List in public directory"
+              desc="Show your profile on oniion.cc/directory so others can discover you"
+              checked={profile.listed_in_directory}
+              onChange={async v=>{
+                set('listed_in_directory',v);
+                await fetch('/api/directory',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({listed:v})});
+              }}
+            />
+            <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:4}}>
+              <a href="/directory" target="_blank" style={{fontSize:12,color:'#a855f7',textDecoration:'none',display:'flex',alignItems:'center',gap:4}}>
+                Browse directory →
+              </a>
+              <span style={{color:'#333'}}>·</span>
+              <a href="/themes" target="_blank" style={{fontSize:12,color:'#a855f7',textDecoration:'none',display:'flex',alignItems:'center',gap:4}}>
+                Theme gallery →
+              </a>
+            </div>
+          </Card>
           {profile.verified && <Card title="Verified Badge" icon={<IconCheck size={12}/>}>
             <Toggle label="Show verified badge" desc="Display the blue verified checkmark next to your name" checked={profile.show_verified_badge} onChange={v=>set('show_verified_badge',v)}/>
             <p style={{fontSize:11,color:'#444',marginTop:4}}>Your account is verified. You can hide the badge if you prefer.</p>
@@ -629,6 +650,7 @@ export default function Dashboard() {
           <Card title="Config — Import &amp; Export" icon={<IconSettings size={12}/>}>
             <p style={{fontSize:12,color:'#444',marginBottom:10}}>
               Export your profile settings as a JSON file and re-import them anytime.
+              Verification status and view counts are never exported.
             </p>
             <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
               <button onClick={exportConfig} className="btn btn-ghost" style={{gap:6,fontSize:13}}>

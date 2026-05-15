@@ -85,6 +85,25 @@ export async function initDB() {
 
   await db`CREATE INDEX IF NOT EXISTS idx_links_user_id ON links(user_id)`;
 
+  // Profile directory opt-in
+  await db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS listed_in_directory BOOLEAN DEFAULT false`.catch(()=>{});
+  await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS directory_bio TEXT`.catch(()=>{});
+
+  // Themes gallery
+  await db`CREATE TABLE IF NOT EXISTS themes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(64) NOT NULL,
+    description VARCHAR(256),
+    preview_color TEXT DEFAULT '#a855f7',
+    preview_accent TEXT DEFAULT '#06b6d4',
+    config JSONB NOT NULL,
+    uses INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  )`;
+  await db`CREATE INDEX IF NOT EXISTS idx_themes_user_id ON themes(user_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_themes_uses ON themes(uses DESC)`;
+
   // ADD COLUMNS — each in its own try/catch so one failure doesn't block the rest
   const addCols = [
     db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS custom_font_url TEXT`.catch(()=>{}),

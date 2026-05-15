@@ -108,6 +108,26 @@ async function main() {
     }
   }
 
+  // New tables and columns
+  const newMigs = [
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS listed_in_directory BOOLEAN DEFAULT false`,
+    `UPDATE profiles SET listed_in_directory = false WHERE listed_in_directory IS NULL`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS custom_cursor_url TEXT`,
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS verified BOOLEAN DEFAULT false`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS show_verified_badge BOOLEAN DEFAULT true`,
+    `UPDATE profiles SET show_verified_badge = true WHERE show_verified_badge IS NULL`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS glass_opacity REAL DEFAULT 0.72`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS glass_tint TEXT DEFAULT 'auto'`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS cursor_trail_style VARCHAR(32) DEFAULT 'dot'`,
+    `CREATE TABLE IF NOT EXISTS themes (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID REFERENCES users(id) ON DELETE CASCADE, name VARCHAR(64) NOT NULL, description VARCHAR(256), preview_color TEXT DEFAULT '#a855f7', preview_accent TEXT DEFAULT '#06b6d4', config JSONB NOT NULL, uses INTEGER DEFAULT 0, created_at TIMESTAMPTZ DEFAULT NOW())`,
+    `CREATE INDEX IF NOT EXISTS idx_themes_user_id ON themes(user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_themes_uses_desc ON themes(uses DESC)`,
+  ];
+  for (const m of newMigs) {
+    try { await sql.unsafe(m); console.log('  ✓', m.split(' ').slice(0,6).join(' ')); }
+    catch { console.log('  skipped'); }
+  }
+
   // Backfill display_id
   try {
     await sql.unsafe(`UPDATE users SET display_id = sub.rn FROM (
