@@ -127,7 +127,7 @@ function ImgUpload({label,value,onChange}:{label:string;value:string;onChange:(u
         </button>
         <input ref={ref} type="file" accept="image/*,.gif" style={{display:'none'}} onChange={async e=>{
           const f=e.target.files?.[0];if(!f)return;
-          if(f.size>8*1024*1024){setErr('Max 16MB');return;}
+          if(f.size>16*1024*1024){setErr('Max 16MB');return;}
           setUp(true);setErr('');await startUpload([f]);
         }}/>
       </div>
