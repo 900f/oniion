@@ -18,8 +18,8 @@ export const ourFileRouter = {
     })),
 
   imageUploader: f({
-    image: { maxFileSize: "8MB", maxFileCount: 1 },
-    "image/gif": { maxFileSize: "8MB", maxFileCount: 1 },
+    image: { maxFileSize: "16MB", maxFileCount: 1 },
+    "image/gif": { maxFileSize: "16MB", maxFileCount: 1 },
   })
     .middleware(auth)
     .onUploadComplete(async ({ metadata, file }) => ({
